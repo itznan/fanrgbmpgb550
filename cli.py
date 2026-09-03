@@ -4,6 +4,9 @@ Unified Command-Line Interface for MSI MPG B550 Motherboard & Gigabyte GPU RGB.
 
 import sys
 import time
+import warnings
+
+warnings.filterwarnings("ignore")
 
 from src.controller import MSIMysticLightB550
 from src.gpu_controller import (

@@ -4,7 +4,11 @@ Standalone CLI Runner for Pure Red Bass-Reactive Lighting.
 
 import sys
 import time
+import warnings
 import argparse
+
+warnings.filterwarnings("ignore")
+
 from src.visualizer import BassVisualizer
 
 

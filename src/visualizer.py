@@ -125,6 +125,7 @@ class BassVisualizer:
 
         current_level = 0.0
         frame_count = 0
+        last_sent_r = -1
         t_start = time.perf_counter()
         fps = 0.0
 
@@ -205,17 +206,19 @@ class BassVisualizer:
                 g = 0
                 b = 0
 
-                # Set hardware zones
-                controller.set_zone_data(packet, "j_rgb_1", MODE_STATIC, r, g, b)
-                controller.set_zone_data(packet, "j_rainbow_1", MODE_STATIC, r, g, b, led_count=100)
-                controller.set_zone_data(packet, "j_rainbow_2", MODE_STATIC, r, g, b, led_count=100)
-                controller.set_zone_data(packet, "on_board_led", MODE_STATIC, r, g, b)
-                for i in range(1, 7):
-                    controller.set_zone_data(packet, f"on_board_led_{i}", MODE_STATIC, r, g, b)
+                # Delta check: only dispatch USB packets when color changes or heartbeat (every 30 frames)
+                if r != last_sent_r or (frame_count % 30 == 0):
+                    controller.set_zone_data(packet, "j_rgb_1", MODE_STATIC, r, g, b)
+                    controller.set_zone_data(packet, "j_rainbow_1", MODE_STATIC, r, g, b, led_count=100)
+                    controller.set_zone_data(packet, "j_rainbow_2", MODE_STATIC, r, g, b, led_count=100)
+                    controller.set_zone_data(packet, "on_board_led", MODE_STATIC, r, g, b)
+                    for i in range(1, 7):
+                        controller.set_zone_data(packet, f"on_board_led_{i}", MODE_STATIC, r, g, b)
 
-                controller.stream_update(packet, pause_sec=0.012)
-                if gpu:
-                    gpu.stream_color_fast(r, 0, 0)
+                    controller.stream_update(packet, pause_sec=0.012)
+                    if gpu:
+                        gpu.stream_color_fast(r, 0, 0)
+                    last_sent_r = r
 
                 frame_count += 1
                 if frame_count % 3 == 0:
