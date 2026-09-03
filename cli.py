@@ -1,11 +1,21 @@
 """
-Interactive CLI for MSI MPG B550 GAMING PLUS RGB.
+Unified Command-Line Interface for MSI MPG B550 Motherboard & Gigabyte GPU RGB.
 """
 
 import sys
 import time
 
 from src.controller import MSIMysticLightB550
+from src.gpu_controller import (
+    GigabyteGPURGB,
+    GPU_MODE_STATIC,
+    GPU_MODE_BREATHING,
+    GPU_MODE_COLOR_CYCLE,
+    GPU_MODE_FLASHING,
+    GPU_MODE_DUAL_FLASHING,
+    GPU_MODE_GRADIENT,
+    GPU_MODE_WAVE,
+)
 from src.visualizer import BassVisualizer
 from src.config import (
     COLOR_PRESETS,
@@ -14,42 +24,58 @@ from src.config import (
     MODE_DISABLE,
 )
 
+GPU_ANIMATION_MODES = {
+    "static": GPU_MODE_STATIC,
+    "breathing": GPU_MODE_BREATHING,
+    "pulse": GPU_MODE_BREATHING,
+    "color_cycle": GPU_MODE_COLOR_CYCLE,
+    "flash": GPU_MODE_FLASHING,
+    "flashing": GPU_MODE_FLASHING,
+    "double_flash": GPU_MODE_DUAL_FLASHING,
+    "gradient": GPU_MODE_GRADIENT,
+    "wave": GPU_MODE_WAVE,
+}
+
 
 def print_help():
     print("""
-MSI MPG B550 RGB Controller CLI
+MSI Motherboard & Gigabyte GPU RGB Controller CLI
 
-Usage:
+=== Motherboard Commands ===
   python cli.py status
-  python cli.py bass [--kick | --rumble | --hybrid]
-  python cli.py <preset_name>
-  python cli.py <r> <g> <b>
-  python cli.py mode <animation_mode> [r g b]
+  python cli.py <preset_name>             (red, blue, green, off, etc.)
+  python cli.py <r> <g> <b>               (e.g. 255 0 0)
+  python cli.py mode <animation_mode>     (rainbow_wave, breathing, meteor, etc.)
+
+=== GPU Commands ===
+  python cli.py gpu status                (Checks NVAPI connection and I2C address)
+  python cli.py gpu <preset_name>         (e.g. gpu red, gpu blue, gpu off)
+  python cli.py gpu <r> <g> <b>           (e.g. gpu 255 0 0)
+  python cli.py gpu mode <mode_name>      (breathing, flash, color_cycle, wave)
+
+=== Synchronized Control (Motherboard + GPU) ===
+  python cli.py sync <preset_name>        (e.g. sync red, sync off)
+  python cli.py sync <r> <g> <b>          (e.g. sync 255 0 0)
+  python cli.py bass [--gpu]              (Pure red bass visualizer synced to Motherboard & GPU)
 
 Examples:
-  python cli.py bass                 # Start pure red bass visualizer in terminal
-  python cli.py red                  # Solid red
-  python cli.py off                  # Turn off all LEDs
-  python cli.py 255 0 0              # Custom RGB
-  python cli.py mode rainbow_wave    # Rainbow wave animation
-  python cli.py mode breathing       # Red breathing animation
-
-Presets:
-  red, green, blue, cyan, magenta, yellow, orange, purple, white, off
-
-Animation Modes:
-  rainbow_wave, breathing, meteor, flashing, double_flashing,
-  lightning, color_pulse, color_shift, color_wave, marquee, visor,
-  stack, fire
+  python cli.py bass --gpu                # Bass visualizer pulsing Motherboard AND GPU logo
+  python cli.py sync red                  # Set entire PC to pure red
+  python cli.py gpu mode breathing        # GPU pulsing red breathing mode
+  python cli.py sync off                  # Power down all RGB across the system
 """)
 
 
-def run_cli_bass():
-    print("=" * 60)
+def run_cli_bass(sync_gpu: bool = False):
+    print("=" * 65)
     print(" Pure Red Bass & Kick-Drum Visualizer (Terminal Mode)")
-    print("=" * 60)
-    print("Audio Source: Default Headphones/Speakers (WASAPI Loopback)")
+    print("=" * 65)
+    print("Audio Source: Default Playback Device (WASAPI Loopback)")
     print("Color: 100% Pure Red (Zero orange, zero amber)")
+    if sync_gpu:
+        print("Hardware Sync: MSI B550 Motherboard + Gigabyte GPU")
+    else:
+        print("Hardware Sync: MSI B550 Motherboard (use --gpu to include GPU)")
     print("Press Ctrl+C to stop.\n")
 
     def on_frame(level: float, red_val: int, fps: float):
@@ -61,7 +87,7 @@ def run_cli_bass():
         )
         sys.stdout.flush()
 
-    vis = BassVisualizer(mode="hybrid", on_frame=on_frame)
+    vis = BassVisualizer(mode="hybrid", sync_gpu=sync_gpu, on_frame=on_frame)
     vis.start()
 
     try:
@@ -74,6 +100,103 @@ def run_cli_bass():
         print("Done.")
 
 
+def handle_gpu_command(args):
+    if not args:
+        print_help()
+        return
+
+    sub = args[0].lower()
+    gpu = GigabyteGPURGB()
+
+    if sub == "status":
+        if gpu.probe_and_connect():
+            print(f"[OK] Gigabyte GPU Detected: {gpu.gpu_name}")
+            print(f"[OK] Controller I2C Address: 0x{gpu.active_address:02X} (Port 1)")
+        else:
+            print("[FAIL] Could not detect Gigabyte GPU RGB controller.")
+        return
+
+    if not gpu.probe_and_connect():
+        print("[FAIL] Unable to connect to GPU RGB controller via NVAPI.")
+        return
+
+    if sub == "off":
+        gpu.turn_off()
+        print("[OK] GPU RGB turned OFF.")
+        return
+
+    if sub in COLOR_PRESETS:
+        r, g, b = COLOR_PRESETS[sub]
+        gpu.apply_color(r, g, b)
+        print(f"[OK] GPU set to {sub.upper()} ({r}, {g}, {b})")
+        return
+
+    if sub == "mode" and len(args) >= 2:
+        mode_name = args[1].lower()
+        if mode_name not in GPU_ANIMATION_MODES:
+            print(f"Unknown GPU mode: '{mode_name}'. Options: {', '.join(GPU_ANIMATION_MODES.keys())}")
+            return
+        gpu.apply_mode(GPU_ANIMATION_MODES[mode_name])
+        print(f"[OK] GPU mode set to {mode_name.upper()}.")
+        return
+
+    if len(args) >= 3:
+        try:
+            r, g, b = int(args[0]), int(args[1]), int(args[2])
+            gpu.apply_color(r, g, b)
+            print(f"[OK] GPU set to RGB({r}, {g}, {b})")
+            return
+        except ValueError:
+            pass
+
+    print_help()
+
+
+def handle_sync_command(args):
+    if not args:
+        print_help()
+        return
+
+    sub = args[0].lower()
+    r, g, b = 255, 0, 0
+    mode = MODE_STATIC
+
+    if sub == "off":
+        r, g, b = 0, 0, 0
+        mode = MODE_DISABLE
+    elif sub in COLOR_PRESETS:
+        r, g, b = COLOR_PRESETS[sub]
+    elif len(args) >= 3:
+        try:
+            r, g, b = int(args[0]), int(args[1]), int(args[2])
+        except ValueError:
+            print_help()
+            return
+    else:
+        print_help()
+        return
+
+    # 1. Update Motherboard
+    try:
+        with MSIMysticLightB550() as controller:
+            controller.apply_color_to_all(r, g, b, mode=mode)
+    except Exception as e:
+        print(f"[Warning] Motherboard update error: {e}")
+
+    # 2. Update GPU
+    try:
+        gpu = GigabyteGPURGB()
+        if gpu.probe_and_connect():
+            if mode == MODE_DISABLE:
+                gpu.turn_off()
+            else:
+                gpu.apply_color(r, g, b)
+    except Exception as e:
+        print(f"[Warning] GPU update error: {e}")
+
+    print(f"[OK] Synchronized Motherboard + GPU to RGB({r}, {g}, {b})")
+
+
 def main():
     if len(sys.argv) < 2:
         print_help()
@@ -82,13 +205,22 @@ def main():
     cmd = sys.argv[1].lower()
 
     if cmd == "bass":
-        run_cli_bass()
+        sync_gpu = "--gpu" in sys.argv or "-g" in sys.argv
+        run_cli_bass(sync_gpu=sync_gpu)
+        return
+
+    if cmd == "gpu":
+        handle_gpu_command(sys.argv[2:])
+        return
+
+    if cmd == "sync":
+        handle_sync_command(sys.argv[2:])
         return
 
     with MSIMysticLightB550() as controller:
         if cmd == "status":
             packet = controller.read_packet()
-            print("Current Active Zones:")
+            print("Current Active Zones (Motherboard):")
             for z in ["j_rgb_1", "j_rainbow_1", "j_rainbow_2", "on_board_led"]:
                 info = controller.get_zone_info(packet, z)
                 print(f"  {z}: Mode={info['effect']} RGB={info['primary_rgb']} Brightness={info['brightness']}/10")
@@ -98,7 +230,7 @@ def main():
             r, g, b = COLOR_PRESETS[cmd]
             mode = MODE_DISABLE if cmd == "off" else MODE_STATIC
             controller.apply_color_to_all(r, g, b, mode=mode)
-            print(f"[OK] Set all zones to {cmd.upper()} (R={r}, G={g}, B={b})")
+            print(f"[OK] Set all motherboard zones to {cmd.upper()} (R={r}, G={g}, B={b})")
             return
 
         if cmd == "mode" and len(sys.argv) >= 3:
@@ -117,7 +249,7 @@ def main():
                     pass
 
             controller.apply_color_to_all(r, g, b, mode=ANIMATION_MODES[mode_name])
-            print(f"[OK] Switched mode to {mode_name.upper()} (R={r}, G={g}, B={b})")
+            print(f"[OK] Switched motherboard mode to {mode_name.upper()} (R={r}, G={g}, B={b})")
             return
 
         if len(sys.argv) >= 4:
@@ -126,7 +258,7 @@ def main():
                 g = int(sys.argv[2])
                 b = int(sys.argv[3])
                 controller.apply_color_to_all(r, g, b, mode=MODE_STATIC)
-                print(f"[OK] Set all zones to custom RGB({r}, {g}, {b})")
+                print(f"[OK] Set all motherboard zones to custom RGB({r}, {g}, {b})")
             except ValueError:
                 print_help()
             return

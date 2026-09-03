@@ -30,6 +30,7 @@ class BassVisualizer:
         decay: float = 0.70,
         gamma: float = 1.6,
         device_name: Optional[str] = None,
+        sync_gpu: bool = False,
         on_frame: Optional[Callable[[float, int, float], None]] = None,
     ):
         self.mode = mode
@@ -41,6 +42,7 @@ class BassVisualizer:
         self.decay = decay
         self.gamma = gamma
         self.device_name = device_name
+        self.sync_gpu = sync_gpu
         self.on_frame = on_frame
 
         self.running = False
@@ -127,6 +129,17 @@ class BassVisualizer:
         fps = 0.0
 
         controller = MSIMysticLightB550()
+        gpu = None
+        if self.sync_gpu:
+            try:
+                from src.gpu_controller import GigabyteGPURGB
+                gpu_dev = GigabyteGPURGB()
+                if gpu_dev.probe_and_connect():
+                    gpu = gpu_dev
+            except Exception as ex:
+                print(f"[Visualizer GPU Warning]: {ex}", file=sys.stderr)
+                gpu = None
+
         try:
             controller.open()
             packet = controller.read_packet()
@@ -201,6 +214,8 @@ class BassVisualizer:
                     controller.set_zone_data(packet, f"on_board_led_{i}", MODE_STATIC, r, g, b)
 
                 controller.stream_update(packet, pause_sec=0.012)
+                if gpu:
+                    gpu.stream_color_fast(r, 0, 0)
 
                 frame_count += 1
                 if frame_count % 3 == 0:
@@ -218,6 +233,11 @@ class BassVisualizer:
         except Exception as e:
             print(f"[Visualizer Render Error]: {e}", file=sys.stderr)
         finally:
+            if gpu:
+                try:
+                    gpu.apply_color(self.min_brightness, 0, 0)
+                except Exception:
+                    pass
             try:
                 controller.apply_color_to_all(self.min_brightness, 0, 0, mode=MODE_STATIC)
                 controller.close()

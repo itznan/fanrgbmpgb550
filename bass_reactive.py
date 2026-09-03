@@ -56,6 +56,11 @@ def main():
         help="Audio device name (default: system default headphones/speakers)",
     )
     parser.add_argument(
+        "--gpu",
+        action="store_true",
+        help="Synchronize GPU RGB logo with motherboard bass visualizer",
+    )
+    parser.add_argument(
         "--list-devices",
         action="store_true",
         help="List available audio output devices and exit",
@@ -97,6 +102,7 @@ def main():
         decay=args.decay,
         gamma=args.gamma,
         device_name=args.device,
+        sync_gpu=args.gpu,
         on_frame=on_frame,
     )
     vis.start()
