@@ -3,163 +3,319 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FanRGB - Lighting Controller</title>
+  <title>FanRGB - Lighting Studio</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-layout">
-    <!-- Vercel Header -->
+    <!-- Top Bar -->
     <header class="navbar">
-      <div class="brand">
-        <svg class="brand-triangle" width="16" height="16" viewBox="0 0 76 65" fill="none">
-          <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="#ffffff"/>
-        </svg>
-        <span class="brand-title">FanRGB</span>
+      <div class="navbar-brand">
+        <div class="logo-box">
+          <svg class="brand-triangle" width="14" height="14" viewBox="0 0 76 65" fill="none">
+            <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="#ffffff"/>
+          </svg>
+        </div>
+        <div class="brand-titles">
+          <span class="brand-name">FanRGB Studio</span>
+          <span class="brand-desc">Hardware RGB Controller</span>
+        </div>
       </div>
 
-      <!-- Hardware Status Badges -->
-      <div class="status-group">
-        <div class="status-indicator" id="mb-indicator">
-          <span class="status-dot"></span>
-          <span class="status-label">B550 HID</span>
+      <!-- Live Hardware Telemetry -->
+      <div class="hardware-telemetry">
+        <div class="telemetry-pill" id="mb-indicator" title="MSI MPG B550 GAMING PLUS (USB HID Report 0x52)">
+          <span class="pulse-dot"></span>
+          <span class="pill-title">B550 GAMING PLUS</span>
         </div>
-        <div class="status-indicator" id="gpu-indicator">
-          <span class="status-dot"></span>
-          <span class="status-label">RTX 3060 Ti</span>
+
+        <div class="telemetry-pill" id="gpu-indicator" title="Gigabyte GeForce RTX 3060 Ti (NVAPI I2C 0xAB)">
+          <span class="pulse-dot"></span>
+          <span class="pill-title">RTX 3060 Ti</span>
+        </div>
+
+        <div class="telemetry-pill safety-pill" title="Volatile RAM Updates (Byte 184 = 0x00)">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>RAM SAFE</span>
         </div>
       </div>
     </header>
 
-    <!-- Main Single-Page Controller -->
+    <!-- Main Workspace -->
     <main class="main-content">
-      <div class="vercel-card">
-        <!-- Effect Mode Selector (Transitions.dev Sliding Tabs) -->
-        <div class="section-block">
-          <div class="block-header">
-            <span class="section-label">Lighting Effect</span>
-            <span id="active-effect-pill" class="badge-subtle">MODE: STATIC</span>
+      <div class="studio-card">
+        <!-- Effect Selector (Transitions.dev Sliding Tabs) -->
+        <div class="panel-row">
+          <div class="row-header">
+            <div class="label-with-icon">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span class="row-label">Hardware Animation Effect</span>
+            </div>
+            <span id="active-effect-tag" class="status-tag">STATIC</span>
           </div>
 
           <div class="t-tabs" role="tablist">
             <span class="t-tabs-pill" aria-hidden="true"></span>
-            <button class="t-tab" role="tab" aria-selected="true" data-mode="static">Static</button>
-            <button class="t-tab" role="tab" aria-selected="false" data-mode="breathing">Breathing</button>
-            <button class="t-tab" role="tab" aria-selected="false" data-mode="meteor">Meteor</button>
-            <button class="t-tab" role="tab" aria-selected="false" data-mode="flashing">Flashing</button>
-            <button class="t-tab" role="tab" aria-selected="false" data-mode="off">Power Off</button>
+            <button class="t-tab" role="tab" aria-selected="true" data-mode="static">
+              <svg class="tab-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/></svg>
+              Static
+            </button>
+            <button class="t-tab" role="tab" aria-selected="false" data-mode="breathing">
+              <svg class="tab-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h5l3 8 4-16 3 8h5"/></svg>
+              Breathing
+            </button>
+            <button class="t-tab" role="tab" aria-selected="false" data-mode="meteor">
+              <svg class="tab-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="17.5" r="2.5"/></svg>
+              Meteor
+            </button>
+            <button class="t-tab" role="tab" aria-selected="false" data-mode="flashing">
+              <svg class="tab-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Flashing
+            </button>
+            <button class="t-tab tab-off" role="tab" aria-selected="false" data-mode="off">
+              <svg class="tab-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+              Power Off
+            </button>
           </div>
         </div>
 
-        <!-- 20 Color Palette Grid -->
-        <div class="section-block">
-          <div class="block-header">
-            <span class="section-label">Select Color (20 Presets)</span>
-            <span class="hint-text">Click any color to immediately apply</span>
+        <!-- 20-Color Studio Palette -->
+        <div class="panel-row">
+          <div class="row-header">
+            <div class="label-with-icon">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0 0 14v6"/>
+              </svg>
+              <span class="row-label">Studio Color Palette (20 Colors)</span>
+            </div>
+            <span class="subtle-note">Instant Hardware Transmission</span>
           </div>
 
           <div class="color-grid" id="color-grid">
-            <!-- 20 Curated Colors -->
+            <!-- Row 1: Warm Tones -->
             <button class="color-card active" data-name="Pure Red" data-hex="#ff0000" style="--c: #ff0000;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Pure Red</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Pure Red</span>
+                <span class="color-hex">#FF0000</span>
+              </div>
             </button>
             <button class="color-card" data-name="Crimson" data-hex="#e11d48" style="--c: #e11d48;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Crimson</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Crimson</span>
+                <span class="color-hex">#E11D48</span>
+              </div>
             </button>
             <button class="color-card" data-name="Ruby" data-hex="#9f1239" style="--c: #9f1239;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Ruby</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Ruby</span>
+                <span class="color-hex">#9F1239</span>
+              </div>
             </button>
             <button class="color-card" data-name="Blood Orange" data-hex="#ea580c" style="--c: #ea580c;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Blood Orange</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Blood Orange</span>
+                <span class="color-hex">#EA580C</span>
+              </div>
             </button>
             <button class="color-card" data-name="Neon Orange" data-hex="#ff7800" style="--c: #ff7800;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Neon Orange</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Neon Orange</span>
+                <span class="color-hex">#FF7800</span>
+              </div>
             </button>
 
+            <!-- Row 2: Gold, Yellow & Greens -->
             <button class="color-card" data-name="Amber" data-hex="#f59e0b" style="--c: #f59e0b;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Amber</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Amber</span>
+                <span class="color-hex">#F59E0B</span>
+              </div>
             </button>
-            <button class="color-card" data-name="Pure Yellow" data-hex="#ffff00" style="--c: #ffff00;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Yellow</span>
+            <button class="color-card" data-name="Yellow" data-hex="#ffff00" style="--c: #ffff00;">
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Yellow</span>
+                <span class="color-hex">#FFFF00</span>
+              </div>
             </button>
             <button class="color-card" data-name="Lime" data-hex="#84cc16" style="--c: #84cc16;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Lime</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Lime</span>
+                <span class="color-hex">#84CC16</span>
+              </div>
             </button>
             <button class="color-card" data-name="Pure Green" data-hex="#00ff00" style="--c: #00ff00;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Pure Green</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Pure Green</span>
+                <span class="color-hex">#00FF00</span>
+              </div>
             </button>
             <button class="color-card" data-name="Emerald" data-hex="#10b981" style="--c: #10b981;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Emerald</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Emerald</span>
+                <span class="color-hex">#10B981</span>
+              </div>
             </button>
 
+            <!-- Row 3: Cyans & Blues -->
             <button class="color-card" data-name="Teal" data-hex="#14b8a6" style="--c: #14b8a6;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Teal</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Teal</span>
+                <span class="color-hex">#14B8A6</span>
+              </div>
             </button>
             <button class="color-card" data-name="Cyan" data-hex="#00ffff" style="--c: #00ffff;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Cyan</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Cyan</span>
+                <span class="color-hex">#00FFFF</span>
+              </div>
             </button>
             <button class="color-card" data-name="Sky Blue" data-hex="#0ea5e9" style="--c: #0ea5e9;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Sky Blue</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Sky Blue</span>
+                <span class="color-hex">#0EA5E9</span>
+              </div>
             </button>
             <button class="color-card" data-name="Pure Blue" data-hex="#0000ff" style="--c: #0000ff;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Pure Blue</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Pure Blue</span>
+                <span class="color-hex">#0000FF</span>
+              </div>
             </button>
             <button class="color-card" data-name="Indigo" data-hex="#4338ca" style="--c: #4338ca;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Indigo</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Indigo</span>
+                <span class="color-hex">#4338CA</span>
+              </div>
             </button>
 
+            <!-- Row 4: Purples, Pinks & Whites -->
             <button class="color-card" data-name="Purple" data-hex="#a855f7" style="--c: #a855f7;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Purple</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Purple</span>
+                <span class="color-hex">#A855F7</span>
+              </div>
             </button>
             <button class="color-card" data-name="Magenta" data-hex="#d946ef" style="--c: #d946ef;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Magenta</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Magenta</span>
+                <span class="color-hex">#D946EF</span>
+              </div>
             </button>
             <button class="color-card" data-name="Hot Pink" data-hex="#f43f5e" style="--c: #f43f5e;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Hot Pink</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Hot Pink</span>
+                <span class="color-hex">#F43F5E</span>
+              </div>
             </button>
             <button class="color-card" data-name="Pure White" data-hex="#ffffff" style="--c: #ffffff;">
-              <span class="color-swatch"></span>
-              <span class="color-name">White</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Pure White</span>
+                <span class="color-hex">#FFFFFF</span>
+              </div>
             </button>
             <button class="color-card" data-name="Warm White" data-hex="#fff5ea" style="--c: #fff5ea;">
-              <span class="color-swatch"></span>
-              <span class="color-name">Warm White</span>
+              <span class="swatch-glow"></span>
+              <div class="color-meta">
+                <span class="color-title">Warm White</span>
+                <span class="color-hex">#FFF5EA</span>
+              </div>
             </button>
           </div>
         </div>
 
-        <!-- Custom Color & Live Active State Footer -->
-        <div class="active-status-bar">
-          <div class="active-info">
-            <div id="active-preview-dot" class="preview-glow" style="background: #ff0000;"></div>
-            <div class="active-labels">
-              <span class="active-title">ACTIVE HARDWARE STATE</span>
-              <!-- Transitions.dev Shimmer Text for current state -->
-              <span id="active-state-text" class="t-shimmer" data-text="Pure Red · Static">Pure Red · Static</span>
+        <!-- Precision RGB Channels (Sliders) -->
+        <div class="panel-row">
+          <div class="row-header">
+            <div class="label-with-icon">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="4" y1="21" x2="4" y2="14"/>
+                <line x1="4" y1="10" x2="4" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12" y2="3"/>
+                <line x1="20" y1="21" x2="20" y2="16"/>
+                <line x1="20" y1="12" x2="20" y2="3"/>
+                <line x1="1" y1="14" x2="7" y2="14"/>
+                <line x1="9" y1="8" x2="15" y2="8"/>
+                <line x1="17" y1="16" x2="23" y2="16"/>
+              </svg>
+              <span class="row-label">Precision RGB Channels (0 - 255)</span>
+            </div>
+            <span id="rgb-summary" class="status-tag mono">RGB: 255, 0, 0</span>
+          </div>
+
+          <div class="rgb-sliders-container">
+            <!-- Channel Red -->
+            <div class="channel-slider channel-red">
+              <div class="channel-header">
+                <span class="channel-badge">R</span>
+                <span class="channel-name">Red</span>
+              </div>
+              <input type="range" id="slider-r" min="0" max="255" value="255" class="t-slider slider-red">
+              <input type="number" id="num-r" min="0" max="255" value="255" class="channel-num-field">
+            </div>
+
+            <!-- Channel Green -->
+            <div class="channel-slider channel-green">
+              <div class="channel-header">
+                <span class="channel-badge">G</span>
+                <span class="channel-name">Green</span>
+              </div>
+              <input type="range" id="slider-g" min="0" max="255" value="0" class="t-slider slider-green">
+              <input type="number" id="num-g" min="0" max="255" value="0" class="channel-num-field">
+            </div>
+
+            <!-- Channel Blue -->
+            <div class="channel-slider channel-blue">
+              <div class="channel-header">
+                <span class="channel-badge">B</span>
+                <span class="channel-name">Blue</span>
+              </div>
+              <input type="range" id="slider-b" min="0" max="255" value="0" class="t-slider slider-blue">
+              <input type="number" id="num-b" min="0" max="255" value="0" class="channel-num-field">
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Telemetry & Custom Picker Strip -->
+        <div class="master-strip">
+          <div class="preview-cluster">
+            <div id="active-orb" class="ambient-orb" style="--glow-color: #ff0000;"></div>
+            <div class="status-readout">
+              <span class="readout-label">ACTIVE RIG TELEMETRY</span>
+              <!-- Transitions.dev Shimmer Text -->
+              <span id="active-shimmer" class="t-shimmer" data-text="Pure Red · Static (255, 0, 0)">Pure Red · Static (255, 0, 0)</span>
             </div>
           </div>
 
-          <div class="custom-color-control">
-            <label for="custom-picker" class="picker-label">Custom:</label>
-            <input type="color" id="custom-picker" value="#ff0000" class="mini-picker">
-            <input type="text" id="custom-hex" value="#FF0000" maxlength="7" class="mini-hex">
+          <div class="custom-palette-cluster">
+            <span class="custom-label">Custom Color:</span>
+            <div class="color-field">
+              <input type="color" id="custom-picker" value="#ff0000" class="input-color-circle">
+              <input type="text" id="custom-hex" value="#FF0000" maxlength="7" class="input-hex-field" spellcheck="false">
+            </div>
           </div>
         </div>
       </div>
@@ -168,10 +324,10 @@
     <!-- Transitions.dev Toast Notification -->
     <div id="toast-container" class="t-toast" data-open="false">
       <div class="toast-inner">
-        <svg class="toast-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="toast-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span id="toast-text">Hardware synced</span>
+        <span id="toast-text">Hardware synced successfully</span>
       </div>
     </div>
   </div>

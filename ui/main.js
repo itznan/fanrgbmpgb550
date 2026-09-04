@@ -1,5 +1,5 @@
 // ==========================================================================
-// FanRGB Controller - Single Page 20-Color & Effect Orchestration
+// FanRGB Controller - Single Page 20-Color, Precision Sliders & Effects
 // ==========================================================================
 
 // Global state
@@ -43,8 +43,9 @@ let toastTimer = null;
 function showToast(msg) {
   const toast = document.getElementById("toast-container");
   const text = document.getElementById("toast-text");
-  text.innerText = msg;
+  if (!toast || !text) return;
 
+  text.innerText = msg;
   toast.classList.add("is-open");
   toast.setAttribute("data-open", "true");
 
@@ -59,10 +60,11 @@ function showToast(msg) {
 // Transitions.dev: Sliding Tabs (Effect Mode Selector)
 // --------------------------------------------------------------------------
 const tabsBar = document.querySelector(".t-tabs");
-const tabsPill = tabsBar.querySelector(".t-tabs-pill");
-const tabButtons = [...tabsBar.querySelectorAll(".t-tab")];
+const tabsPill = tabsBar?.querySelector(".t-tabs-pill");
+const tabButtons = tabsBar ? [...tabsBar.querySelectorAll(".t-tab")] : [];
 
 function movePillTo(tab, animate = true) {
+  if (!tabsPill || !tab) return;
   if (!animate) {
     tabsPill.style.transition = "none";
   }
@@ -80,17 +82,30 @@ tabButtons.forEach((tab) => {
     tab.setAttribute("aria-selected", "true");
     movePillTo(tab, true);
 
-    const mode = tab.getAttribute("data-mode");
+    const mode = tab.getAttribute("data-mode") || "static";
     currentMode = mode;
 
-    document.getElementById("active-effect-pill").innerText = `MODE: ${mode.toUpperCase()}`;
+    const effectTag = document.getElementById("active-effect-tag");
+    if (effectTag) {
+      effectTag.innerText = mode.toUpperCase();
+    }
+
     await sendHardwareUpdate();
   });
 });
 
 // --------------------------------------------------------------------------
-// Color Utilities & 20-Color Selection
+// Color Utilities & State Synchronization
 // --------------------------------------------------------------------------
+function componentToHex(c) {
+  const hex = Math.max(0, Math.min(255, Math.round(c))).toString(16);
+  return hex.length === 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+  return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
 function hexToRgb(hex) {
   const clean = hex.replace("#", "");
   const num = parseInt(clean, 16);
@@ -101,52 +116,165 @@ function hexToRgb(hex) {
   };
 }
 
-// Wire 20 color buttons
+// Elements
+const sliderR = document.getElementById("slider-r");
+const sliderG = document.getElementById("slider-g");
+const sliderB = document.getElementById("slider-b");
+const numR = document.getElementById("num-r");
+const numG = document.getElementById("num-g");
+const numB = document.getElementById("num-b");
+const rgbSummary = document.getElementById("rgb-summary");
+const customPicker = document.getElementById("custom-picker");
+const customHex = document.getElementById("custom-hex");
 const colorButtons = document.querySelectorAll(".color-card");
+
+function syncControls(source = "all") {
+  const { r, g, b, hex } = currentColor;
+
+  if (source !== "sliders") {
+    if (sliderR) sliderR.value = r;
+    if (sliderG) sliderG.value = g;
+    if (sliderB) sliderB.value = b;
+  }
+
+  if (source !== "numbers") {
+    if (numR) numR.value = r;
+    if (numG) numG.value = g;
+    if (numB) numB.value = b;
+  }
+
+  if (source !== "picker" && customPicker) {
+    customPicker.value = hex;
+  }
+
+  if (source !== "hex" && customHex) {
+    customHex.value = hex.toUpperCase();
+  }
+
+  if (rgbSummary) {
+    rgbSummary.innerText = `RGB: ${r}, ${g}, ${b}`;
+  }
+
+  updateOrbAndTelemetry();
+}
+
+function updateOrbAndTelemetry() {
+  const isOff = currentMode === "off";
+  const orb = document.getElementById("active-orb");
+  if (orb) {
+    orb.style.setProperty("--glow-color", isOff ? "#18181b" : currentColor.hex);
+    if (currentMode === "breathing") {
+      orb.classList.add("orb-breathing");
+    } else {
+      orb.classList.remove("orb-breathing");
+    }
+  }
+
+  const stateStr = isOff
+    ? "System Lighting Powered Off"
+    : `${currentColor.name} · ${currentMode.toUpperCase()} (${currentColor.r}, ${currentColor.g}, ${currentColor.b})`;
+
+  const shimmer = document.getElementById("active-shimmer");
+  if (shimmer) {
+    shimmer.setAttribute("data-text", stateStr);
+    shimmer.innerText = stateStr;
+  }
+}
+
+// --------------------------------------------------------------------------
+// Precision RGB Channel Sliders & Numbers
+// --------------------------------------------------------------------------
+let sliderThrottleTimer = null;
+
+function handleSliderChange(source) {
+  const r = parseInt(sliderR.value, 10) || 0;
+  const g = parseInt(sliderG.value, 10) || 0;
+  const b = parseInt(sliderB.value, 10) || 0;
+  const hex = rgbToHex(r, g, b);
+
+  currentColor = { r, g, b, hex, name: "Custom" };
+  colorButtons.forEach((btn) => btn.classList.remove("active"));
+
+  syncControls(source);
+
+  // Throttle hardware updates during sliding to preserve USB bus bandwidth
+  if (sliderThrottleTimer) clearTimeout(sliderThrottleTimer);
+  sliderThrottleTimer = setTimeout(() => {
+    sendHardwareUpdate();
+  }, 40);
+}
+
+[sliderR, sliderG, sliderB].forEach((slider) => {
+  if (!slider) return;
+  slider.addEventListener("input", () => handleSliderChange("sliders"));
+  slider.addEventListener("change", () => sendHardwareUpdate());
+});
+
+[numR, numG, numB].forEach((numInput) => {
+  if (!numInput) return;
+  numInput.addEventListener("input", () => {
+    const r = Math.min(255, Math.max(0, parseInt(numR?.value, 10) || 0));
+    const g = Math.min(255, Math.max(0, parseInt(numG?.value, 10) || 0));
+    const b = Math.min(255, Math.max(0, parseInt(numB?.value, 10) || 0));
+
+    if (sliderR) sliderR.value = r;
+    if (sliderG) sliderG.value = g;
+    if (sliderB) sliderB.value = b;
+
+    handleSliderChange("numbers");
+  });
+});
+
+// --------------------------------------------------------------------------
+// 20-Color Studio Preset Cards
+// --------------------------------------------------------------------------
 colorButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
     colorButtons.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
 
-    const hex = btn.getAttribute("data-hex");
-    const name = btn.getAttribute("data-name");
+    const hex = btn.getAttribute("data-hex") || "#ff0000";
+    const name = btn.getAttribute("data-name") || "Custom";
     const rgb = hexToRgb(hex);
 
     currentColor = { r: rgb.r, g: rgb.g, b: rgb.b, hex, name };
-
-    document.getElementById("custom-picker").value = hex;
-    document.getElementById("custom-hex").value = hex.toUpperCase();
-
+    syncControls("preset");
     await sendHardwareUpdate();
   });
 });
 
-// Custom Color Picker and Hex Input
-const customPicker = document.getElementById("custom-picker");
-const customHex = document.getElementById("custom-hex");
-
-customPicker.addEventListener("input", async (e) => {
-  const hex = e.target.value;
-  customHex.value = hex.toUpperCase();
-  const rgb = hexToRgb(hex);
-
-  currentColor = { r: rgb.r, g: rgb.g, b: rgb.b, hex, name: `Custom (${hex.toUpperCase()})` };
-  colorButtons.forEach((b) => b.classList.remove("active"));
-
-  await sendHardwareUpdate();
-});
-
-customHex.addEventListener("change", async (e) => {
-  let hex = e.target.value;
-  if (!hex.startsWith("#")) hex = `#${hex}`;
-  if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
-    customPicker.value = hex;
+// --------------------------------------------------------------------------
+// Custom Native Color Picker & Hex Input
+// --------------------------------------------------------------------------
+if (customPicker) {
+  customPicker.addEventListener("input", async (e) => {
+    const hex = e.target.value;
     const rgb = hexToRgb(hex);
+
     currentColor = { r: rgb.r, g: rgb.g, b: rgb.b, hex, name: `Custom (${hex.toUpperCase()})` };
     colorButtons.forEach((b) => b.classList.remove("active"));
-    await sendHardwareUpdate();
-  }
-});
+    syncControls("picker");
+
+    if (sliderThrottleTimer) clearTimeout(sliderThrottleTimer);
+    sliderThrottleTimer = setTimeout(() => {
+      sendHardwareUpdate();
+    }, 40);
+  });
+}
+
+if (customHex) {
+  customHex.addEventListener("change", async (e) => {
+    let hex = e.target.value.trim();
+    if (!hex.startsWith("#")) hex = `#${hex}`;
+    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+      const rgb = hexToRgb(hex);
+      currentColor = { r: rgb.r, g: rgb.g, b: rgb.b, hex, name: `Custom (${hex.toUpperCase()})` };
+      colorButtons.forEach((b) => b.classList.remove("active"));
+      syncControls("hex");
+      await sendHardwareUpdate();
+    }
+  });
+}
 
 // --------------------------------------------------------------------------
 // Hardware Dispatch Engine
@@ -157,15 +285,11 @@ async function sendHardwareUpdate() {
   const g = isOff ? 0 : currentColor.g;
   const b = isOff ? 0 : currentColor.b;
 
-  // Update UI preview
-  const dot = document.getElementById("active-preview-dot");
-  dot.style.background = isOff ? "#18181b" : currentColor.hex;
-  dot.style.boxShadow = isOff ? "none" : `0 0 16px ${currentColor.hex}`;
+  updateOrbAndTelemetry();
 
-  const stateStr = isOff ? "System Lighting Powered Off" : `${currentColor.name} · ${currentMode.toUpperCase()}`;
-  const shimmer = document.getElementById("active-state-text");
-  shimmer.setAttribute("data-text", stateStr);
-  shimmer.innerText = stateStr;
+  const stateStr = isOff
+    ? "System Lighting Powered Off"
+    : `${currentColor.name} · ${currentMode.toUpperCase()} (${r}, ${g}, ${b})`;
 
   showToast(`Applying ${stateStr}...`);
 
@@ -189,32 +313,41 @@ async function checkHardware() {
   const mbInd = document.getElementById("mb-indicator");
   const gpuInd = document.getElementById("gpu-indicator");
 
-  try {
-    await invokeCommand("get_mb_status");
-    mbInd.className = "status-indicator active";
-    mbInd.querySelector(".status-label").innerText = "B550 HID Active";
-  } catch (e) {
-    mbInd.className = "status-indicator error";
-    mbInd.querySelector(".status-label").innerText = "B550 Offline";
+  if (mbInd) {
+    try {
+      await invokeCommand("get_mb_status");
+      mbInd.className = "telemetry-pill active";
+      const title = mbInd.querySelector(".pill-title");
+      if (title) title.innerText = "B550 GAMING PLUS (Ready)";
+    } catch (e) {
+      mbInd.className = "telemetry-pill error";
+      const title = mbInd.querySelector(".pill-title");
+      if (title) title.innerText = "B550 Offline";
+    }
   }
 
-  try {
-    const gpu = await invokeCommand("get_gpu_status");
-    gpuInd.className = "status-indicator active";
-    gpuInd.querySelector(".status-label").innerText = `RTX 3060 Ti (${gpu.address})`;
-  } catch (e) {
-    gpuInd.className = "status-indicator";
-    gpuInd.querySelector(".status-label").innerText = "GPU Standby";
+  if (gpuInd) {
+    try {
+      const gpu = await invokeCommand("get_gpu_status");
+      gpuInd.className = "telemetry-pill active";
+      const title = gpuInd.querySelector(".pill-title");
+      if (title) title.innerText = `RTX 3060 Ti (${gpu.address})`;
+    } catch (e) {
+      gpuInd.className = "telemetry-pill";
+      const title = gpuInd.querySelector(".pill-title");
+      if (title) title.innerText = "GPU Standby";
+    }
   }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  const activeTab = tabsBar.querySelector('.t-tab[aria-selected="true"]') || tabButtons[0];
+  const activeTab = tabsBar?.querySelector('.t-tab[aria-selected="true"]') || tabButtons[0];
   if (activeTab) movePillTo(activeTab, false);
+  syncControls("all");
   checkHardware();
 });
 
 window.addEventListener("resize", () => {
-  const activeTab = tabsBar.querySelector('.t-tab[aria-selected="true"]');
+  const activeTab = tabsBar?.querySelector('.t-tab[aria-selected="true"]');
   if (activeTab) movePillTo(activeTab, false);
 });
