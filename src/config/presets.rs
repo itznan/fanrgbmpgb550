@@ -20,6 +20,8 @@ pub fn get_color_preset(name: &str) -> Option<(u8, u8, u8)> {
 
 pub fn get_animation_mode(name: &str) -> Option<u8> {
     match name.to_lowercase().as_str() {
+        "static" => Some(MODE_STATIC),
+        "disable" | "off" => Some(MODE_DISABLE),
         "rainbow_wave" => Some(MODE_RAINBOW_WAVE),
         "breathing" => Some(MODE_BREATHING),
         "meteor" => Some(MODE_METEOR),

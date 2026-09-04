@@ -7,8 +7,10 @@
     "frontendDist": "./ui"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "FanRGB - Motherboard & GPU Controller",
         "width": 960,
         "height": 680,

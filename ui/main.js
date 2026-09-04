@@ -2,19 +2,32 @@
 // FanRGB Controller - Vercel UI & Transitions.dev Orchestration
 // ==========================================================================
 
-// IPC Bridge
+// Robust Tauri v2 IPC Bridge
 async function invokeCommand(cmd, args = {}) {
+  let fn = null;
+  if (window.__TAURI__?.core?.invoke) {
+    fn = window.__TAURI__.core.invoke;
+  } else if (window.__TAURI_INTERNALS__?.invoke) {
+    fn = window.__TAURI_INTERNALS__.invoke;
+  } else if (window.__TAURI__?.tauri?.invoke) {
+    fn = window.__TAURI__.tauri.invoke;
+  } else if (window.invoke) {
+    fn = window.invoke;
+  }
+
+  if (!fn) {
+    const errorMsg = "Tauri IPC is not ready. Please run FanRGB through the Tauri desktop window.";
+    console.error(errorMsg, cmd, args);
+    showToast(`Error: ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
   try {
-    if (window.__TAURI__ && window.__TAURI__.core) {
-      return await window.__TAURI__.core.invoke(cmd, args);
-    } else if (window.__TAURI__ && window.__TAURI__.tauri) {
-      return await window.__TAURI__.tauri.invoke(cmd, args);
-    } else {
-      console.log(`[Simulated IPC] ${cmd}`, args);
-      return { status: "simulated" };
-    }
+    const result = await fn(cmd, args);
+    return result;
   } catch (err) {
-    showToast(`Error: ${err}`);
+    console.error(`[IPC Error] ${cmd}:`, err);
+    showToast(`Hardware Error: ${err}`);
     throw err;
   }
 }
@@ -35,7 +48,7 @@ function showToast(msg) {
   toastTimer = setTimeout(() => {
     toast.classList.remove("is-open");
     toast.setAttribute("data-open", "false");
-  }, 2600);
+  }, 2800);
 }
 
 // --------------------------------------------------------------------------
@@ -70,7 +83,6 @@ tabButtons.forEach((tab) => {
   });
 });
 
-// Snap pill on page mount
 window.addEventListener("DOMContentLoaded", () => {
   const activeTab = tabsBar.querySelector('.t-tab[aria-selected="true"]') || tabButtons[0];
   if (activeTab) {
@@ -107,7 +119,6 @@ function hexToRgb(hex) {
   };
 }
 
-// Sync color picker with text hex input
 const mbColor = document.getElementById("mb-color");
 const mbHex = document.getElementById("mb-hex-input");
 mbColor.addEventListener("input", (e) => (mbHex.value = e.target.value));
@@ -126,61 +137,104 @@ gpuHex.addEventListener("input", (e) => {
   }
 });
 
-function setPresetColor(name, hex) {
+// Immediate application for color preset pills
+async function setPresetColor(name, hex) {
   mbColor.value = hex;
   mbHex.value = hex;
+  const rgb = hexToRgb(hex);
+
+  showToast(`Setting Motherboard to ${name.toUpperCase()}...`);
+  try {
+    if (name === "off") {
+      await invokeCommand("set_mb_mode", { mode: "disable", r: 0, g: 0, b: 0 });
+    } else {
+      await invokeCommand("set_mb_color", { r: rgb.r, g: rgb.g, b: rgb.b });
+    }
+    showToast(`Motherboard set to ${name.toUpperCase()}`);
+  } catch (e) {
+    showToast(`Failed: ${e}`);
+  }
 }
 
-function setGpuPresetColor(name, hex) {
+async function setGpuPresetColor(name, hex) {
   gpuColor.value = hex;
   gpuHex.value = hex;
+  const rgb = hexToRgb(hex);
+
+  showToast(`Setting GPU to ${name.toUpperCase()}...`);
+  try {
+    if (name === "off") {
+      await invokeCommand("set_gpu_color", { r: 0, g: 0, b: 0 });
+    } else {
+      await invokeCommand("set_gpu_color", { r: rgb.r, g: rgb.g, b: rgb.b });
+    }
+    showToast(`GPU set to ${name.toUpperCase()}`);
+  } catch (e) {
+    showToast(`Failed: ${e}`);
+  }
 }
 
 // --------------------------------------------------------------------------
 // Hardware Action Triggers
 // --------------------------------------------------------------------------
 
-// 1. Motherboard Update
+// 1. Motherboard Apply
 document.getElementById("btn-apply-mb").addEventListener("click", async () => {
   const hex = mbHex.value;
   const mode = document.getElementById("mb-mode").value;
   const rgb = hexToRgb(hex);
 
-  showToast("Dispatching HID Report 0x52...");
-  if (mode === "static") {
-    await invokeCommand("set_mb_color", { r: rgb.r, g: rgb.g, b: rgb.b });
-  } else {
-    await invokeCommand("set_mb_mode", { mode, r: rgb.r, g: rgb.g, b: rgb.b });
+  showToast("Updating Motherboard lighting...");
+  try {
+    if (mode === "static") {
+      await invokeCommand("set_mb_color", { r: rgb.r, g: rgb.g, b: rgb.b });
+    } else {
+      await invokeCommand("set_mb_mode", { mode, r: rgb.r, g: rgb.g, b: rgb.b });
+    }
+    showToast(`Motherboard updated: ${mode.toUpperCase()} (${rgb.r}, ${rgb.g}, ${rgb.b})`);
+  } catch (e) {
+    showToast(`Motherboard error: ${e}`);
   }
-  showToast(`Motherboard updated: ${mode.toUpperCase()} (${rgb.r}, ${rgb.g}, ${rgb.b})`);
 });
 
-// 2. GPU Update
+// 2. GPU Apply
 document.getElementById("btn-apply-gpu").addEventListener("click", async () => {
   const hex = gpuHex.value;
   const mode = document.getElementById("gpu-mode").value;
   const rgb = hexToRgb(hex);
 
-  showToast("Sending NVAPI I2C block...");
-  if (mode === "static") {
-    await invokeCommand("set_gpu_color", { r: rgb.r, g: rgb.g, b: rgb.b });
-  } else {
-    await invokeCommand("set_gpu_mode", { mode });
+  showToast("Updating GPU RGB...");
+  try {
+    if (mode === "static") {
+      await invokeCommand("set_gpu_color", { r: rgb.r, g: rgb.g, b: rgb.b });
+    } else {
+      await invokeCommand("set_gpu_mode", { mode });
+    }
+    showToast(`GPU updated: ${mode.toUpperCase()}`);
+  } catch (e) {
+    showToast(`GPU error: ${e}`);
   }
-  showToast(`GPU updated: ${mode.toUpperCase()}`);
 });
 
 // 3. System Sync
 async function syncSystemColor(r, g, b, name) {
   showToast(`Synchronizing system to ${name}...`);
-  await invokeCommand("set_sync_color", { r, g, b });
-  showToast(`Rig synchronized to ${name}`);
+  try {
+    await invokeCommand("set_sync_color", { r, g, b });
+    showToast(`Rig synchronized to ${name}`);
+  } catch (e) {
+    showToast(`Sync error: ${e}`);
+  }
 }
 
 async function syncSystemOff() {
-  showToast("Powering down all RGB...");
-  await invokeCommand("turn_off_all");
-  showToast("All system lighting powered down");
+  showToast("Powering down all system RGB...");
+  try {
+    await invokeCommand("turn_off_all");
+    showToast("All system lighting powered down");
+  } catch (e) {
+    showToast(`Error: ${e}`);
+  }
 }
 
 // 4. Pure Red Bass Visualizer
@@ -189,45 +243,53 @@ let visMeterTimer = null;
 document.getElementById("btn-start-vis").addEventListener("click", async () => {
   const syncGpu = gpuToggle.getAttribute("data-on") === "true";
   showToast("Starting WASAPI audio loopback visualizer...");
-  await invokeCommand("start_visualizer", { syncGpu });
 
-  document.getElementById("btn-start-vis").disabled = true;
-  document.getElementById("btn-stop-vis").disabled = false;
+  try {
+    await invokeCommand("start_visualizer", { syncGpu });
 
-  const shimmer = document.getElementById("vis-shimmer-label");
-  shimmer.setAttribute("data-text", "Live: 28-90 Hz Bass Capture");
-  shimmer.innerText = "Live: 28-90 Hz Bass Capture";
+    document.getElementById("btn-start-vis").disabled = true;
+    document.getElementById("btn-stop-vis").disabled = false;
 
-  // Pulse animation for UI meter
-  if (!visMeterTimer) {
-    visMeterTimer = setInterval(() => {
-      const val = Math.floor(Math.random() * 70) + 20;
-      document.getElementById("vis-meter-fill").style.width = `${val}%`;
-      document.getElementById("vis-pct").innerText = `${val}%`;
-    }, 90);
+    const shimmer = document.getElementById("vis-shimmer-label");
+    shimmer.setAttribute("data-text", "Live: 28-90 Hz Bass Capture");
+    shimmer.innerText = "Live: 28-90 Hz Bass Capture";
+
+    if (!visMeterTimer) {
+      visMeterTimer = setInterval(() => {
+        const val = Math.floor(Math.random() * 70) + 20;
+        document.getElementById("vis-meter-fill").style.width = `${val}%`;
+        document.getElementById("vis-pct").innerText = `${val}%`;
+      }, 90);
+    }
+    showToast("Pure Red Bass Visualizer active");
+  } catch (e) {
+    showToast(`Visualizer failed to start: ${e}`);
   }
-  showToast("Bass Visualizer active");
 });
 
 document.getElementById("btn-stop-vis").addEventListener("click", async () => {
-  showToast("Halting visualizer...");
-  await invokeCommand("stop_visualizer");
+  showToast("Stopping visualizer...");
+  try {
+    await invokeCommand("stop_visualizer");
 
-  document.getElementById("btn-start-vis").disabled = false;
-  document.getElementById("btn-stop-vis").disabled = true;
+    document.getElementById("btn-start-vis").disabled = false;
+    document.getElementById("btn-stop-vis").disabled = true;
 
-  const shimmer = document.getElementById("vis-shimmer-label");
-  shimmer.setAttribute("data-text", "Standby — Ready");
-  shimmer.innerText = "Standby — Ready";
+    const shimmer = document.getElementById("vis-shimmer-label");
+    shimmer.setAttribute("data-text", "Standby — Ready");
+    shimmer.innerText = "Standby — Ready";
 
-  document.getElementById("vis-meter-fill").style.width = "0%";
-  document.getElementById("vis-pct").innerText = "0%";
+    document.getElementById("vis-meter-fill").style.width = "0%";
+    document.getElementById("vis-pct").innerText = "0%";
 
-  if (visMeterTimer) {
-    clearInterval(visMeterTimer);
-    visMeterTimer = null;
+    if (visMeterTimer) {
+      clearInterval(visMeterTimer);
+      visMeterTimer = null;
+    }
+    showToast("Visualizer stopped");
+  } catch (e) {
+    showToast(`Error stopping visualizer: ${e}`);
   }
-  showToast("Visualizer stopped");
 });
 
 // 5. Initial hardware check
@@ -236,7 +298,7 @@ async function checkHardwareStatus() {
   const gpuInd = document.getElementById("gpu-indicator");
 
   try {
-    await invokeCommand("get_mb_status");
+    const zones = await invokeCommand("get_mb_status");
     mbInd.className = "status-indicator active";
     mbInd.querySelector(".status-label").innerText = "B550 HID Active";
   } catch (e) {

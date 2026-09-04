@@ -8,6 +8,8 @@ mod visualizer;
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -41,6 +43,13 @@ pub struct GpuStatus {
 
 mod commands {
     use super::*;
+
+    fn stop_vis_if_active(state: &State<'_, AppState>) {
+        if state.vis_running.load(Ordering::SeqCst) {
+            state.vis_running.store(false, Ordering::SeqCst);
+            thread::sleep(Duration::from_millis(60));
+        }
+    }
 
     #[tauri::command]
     pub fn get_mb_status() -> Result<Vec<ZoneStatus>, String> {
@@ -77,28 +86,43 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn set_mb_color(r: u8, g: u8, b: u8) -> Result<(), String> {
+    pub fn set_mb_color(state: State<'_, AppState>, r: u8, g: u8, b: u8) -> Result<(), String> {
+        stop_vis_if_active(&state);
         let mut controller = MSIMysticLightB550::open()?;
-        controller.apply_color_to_all(r, g, b, MODE_STATIC)
+        let mode = if r == 0 && g == 0 && b == 0 { MODE_DISABLE } else { MODE_STATIC };
+        controller.apply_color_to_all(r, g, b, mode)
     }
 
     #[tauri::command]
     pub fn set_gpu_color(r: u8, g: u8, b: u8) -> Result<(), String> {
         let mut gpu = GigabyteGPURGB::new(None);
         if gpu.probe_and_connect() {
-            gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
+            if r == 0 && g == 0 && b == 0 {
+                gpu.turn_off();
+            } else {
+                gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
+            }
             Ok(())
         } else {
-            Err("GPU not connected".to_string())
+            Err("GPU not connected via NVAPI".to_string())
         }
     }
 
     #[tauri::command]
-    pub fn set_sync_color(r: u8, g: u8, b: u8) -> Result<(), String> {
+    pub fn set_sync_color(state: State<'_, AppState>, r: u8, g: u8, b: u8) -> Result<(), String> {
+        stop_vis_if_active(&state);
         let mode = if r == 0 && g == 0 && b == 0 { MODE_DISABLE } else { MODE_STATIC };
-        if let Ok(mut controller) = MSIMysticLightB550::open() {
-            let _ = controller.apply_color_to_all(r, g, b, mode);
+        let mut errors = Vec::new();
+
+        match MSIMysticLightB550::open() {
+            Ok(mut controller) => {
+                if let Err(e) = controller.apply_color_to_all(r, g, b, mode) {
+                    errors.push(format!("Motherboard error: {}", e));
+                }
+            }
+            Err(e) => errors.push(format!("Motherboard open failed: {}", e)),
         }
+
         let mut gpu = GigabyteGPURGB::new(None);
         if gpu.probe_and_connect() {
             if mode == MODE_DISABLE {
@@ -106,17 +130,30 @@ mod commands {
             } else {
                 gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
             }
+        } else {
+            errors.push("GPU not detected via NVAPI".to_string());
         }
-        Ok(())
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join(" | "))
+        }
     }
 
     #[tauri::command]
-    pub fn set_mb_mode(mode: String, r: u8, g: u8, b: u8) -> Result<(), String> {
-        if let Some(mode_code) = get_animation_mode(&mode) {
+    pub fn set_mb_mode(state: State<'_, AppState>, mode: String, r: u8, g: u8, b: u8) -> Result<(), String> {
+        stop_vis_if_active(&state);
+        let mode_clean = mode.to_lowercase();
+        if mode_clean == "disable" || mode_clean == "off" {
+            let mut controller = MSIMysticLightB550::open()?;
+            return controller.apply_color_to_all(0, 0, 0, MODE_DISABLE);
+        }
+        if let Some(mode_code) = get_animation_mode(&mode_clean) {
             let mut controller = MSIMysticLightB550::open()?;
             controller.apply_color_to_all(r, g, b, mode_code)
         } else {
-            Err(format!("Unknown mode: {}", mode))
+            Err(format!("Unknown animation mode: {}", mode))
         }
     }
 
@@ -124,9 +161,9 @@ mod commands {
     pub fn set_gpu_mode(mode: String) -> Result<(), String> {
         let mode_code = match mode.to_lowercase().as_str() {
             "static" => GPU_MODE_STATIC,
-            "breathing" => GPU_MODE_BREATHING,
+            "breathing" | "pulse" => GPU_MODE_BREATHING,
             "color_cycle" => GPU_MODE_COLOR_CYCLE,
-            "flashing" => GPU_MODE_FLASHING,
+            "flash" | "flashing" => GPU_MODE_FLASHING,
             "gradient" => GPU_MODE_GRADIENT,
             "wave" => GPU_MODE_WAVE,
             _ => return Err(format!("Unknown GPU mode: {}", mode)),
@@ -137,7 +174,7 @@ mod commands {
             gpu.apply_mode(mode_code, 255, 0, 0, GPU_SPEED_NORMAL, GPU_BRIGHTNESS_MAX);
             Ok(())
         } else {
-            Err("GPU not connected".to_string())
+            Err("GPU not connected via NVAPI".to_string())
         }
     }
 
@@ -177,8 +214,8 @@ mod commands {
     }
 
     #[tauri::command]
-    pub fn turn_off_all() -> Result<(), String> {
-        set_sync_color(0, 0, 0)
+    pub fn turn_off_all(state: State<'_, AppState>) -> Result<(), String> {
+        set_sync_color(state, 0, 0, 0)
     }
 }
 
