@@ -3,263 +3,175 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FanRGB - Motherboard & GPU Lighting</title>
+  <title>FanRGB - Lighting Controller</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-layout">
-    <!-- Vercel-style Top Navigation Bar -->
+    <!-- Vercel Header -->
     <header class="navbar">
-      <div class="navbar-left">
-        <div class="brand-badge">
-          <svg class="brand-triangle" width="16" height="16" viewBox="0 0 76 65" fill="none">
-            <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="#ffffff"/>
-          </svg>
-          <span class="brand-title">FanRGB</span>
-          <span class="brand-version">v0.1.0</span>
-        </div>
+      <div class="brand">
+        <svg class="brand-triangle" width="16" height="16" viewBox="0 0 76 65" fill="none">
+          <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="#ffffff"/>
+        </svg>
+        <span class="brand-title">FanRGB</span>
       </div>
 
-      <div class="navbar-center">
-        <!-- Transitions.dev Sliding Tabs Segmented Control -->
-        <div class="t-tabs" role="tablist">
-          <span class="t-tabs-pill" aria-hidden="true"></span>
-          <button class="t-tab" role="tab" aria-selected="true" data-tab="tab-bass">Visualizer</button>
-          <button class="t-tab" role="tab" aria-selected="false" data-tab="tab-mb">Motherboard</button>
-          <button class="t-tab" role="tab" aria-selected="false" data-tab="tab-gpu">GPU Fusion</button>
-          <button class="t-tab" role="tab" aria-selected="false" data-tab="tab-sync">System Sync</button>
-        </div>
-      </div>
-
-      <div class="navbar-right">
-        <div class="status-indicator" id="mb-indicator" title="MSI MPG B550 GAMING PLUS (Report 0x52)">
+      <!-- Hardware Status Badges -->
+      <div class="status-group">
+        <div class="status-indicator" id="mb-indicator">
           <span class="status-dot"></span>
           <span class="status-label">B550 HID</span>
         </div>
-        <div class="status-indicator" id="gpu-indicator" title="Gigabyte RTX 3060 Ti (NVAPI I2C 0xAB)">
+        <div class="status-indicator" id="gpu-indicator">
           <span class="status-dot"></span>
-          <span class="status-label">NVAPI GPU</span>
+          <span class="status-label">RTX 3060 Ti</span>
         </div>
       </div>
     </header>
 
-    <!-- Main Content Panels -->
+    <!-- Main Single-Page Controller -->
     <main class="main-content">
-      <!-- 1. Bass Visualizer Tab -->
-      <section id="tab-bass" class="panel-section active">
-        <div class="vercel-card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Pure Red Bass Visualizer</h2>
-              <p class="card-subtitle">Real-time WASAPI audio loopback visualizer (28–90 Hz) pulsing Motherboard and GPU.</p>
-            </div>
-            <div class="header-tag">WASAPI Loopback</div>
+      <div class="vercel-card">
+        <!-- Effect Mode Selector (Transitions.dev Sliding Tabs) -->
+        <div class="section-block">
+          <div class="block-header">
+            <span class="section-label">Lighting Effect</span>
+            <span id="active-effect-pill" class="badge-subtle">MODE: STATIC</span>
           </div>
 
-          <!-- Real-time Meter -->
-          <div class="meter-box">
-            <div class="meter-track">
-              <div id="vis-meter-fill" class="meter-fill" style="width: 0%;"></div>
-            </div>
-            <div class="meter-details">
-              <div class="meter-stat">
-                <span class="stat-name">SUB-BASS MAGNITUDE</span>
-                <span id="vis-pct" class="stat-value">0%</span>
-              </div>
-              <div class="meter-stat right">
-                <span class="stat-name">AUDIO STREAM STATUS</span>
-                <!-- Transitions.dev Shimmer Text for Live Status -->
-                <span id="vis-shimmer-label" class="stat-value t-shimmer" data-text="Standby — Ready">Standby — Ready</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Settings Row with Transitions.dev Toggle Switch -->
-          <div class="settings-row">
-            <div class="setting-item">
-              <div class="setting-text">
-                <span class="setting-title">Gigabyte GPU Logo Sync</span>
-                <span class="setting-desc">Simultaneously stream 0x40/0xB0 I2C frames to GPU side logo</span>
-              </div>
-              <!-- Transitions.dev Toggle Switch with double-bounce overshoot -->
-              <button id="toggle-gpu-sync" class="t-toggle" role="switch" data-on="true" aria-label="GPU Sync Toggle">
-                <span class="t-toggle-thumb"></span>
-              </button>
-            </div>
-
-            <div class="setting-item">
-              <div class="setting-text">
-                <span class="setting-title">Dynamic AGC & Noise Gate</span>
-                <span class="setting-desc">Self-adjusting dynamic floor & ceiling follower</span>
-              </div>
-              <span class="badge-pill">ACTIVE (28-90 Hz)</span>
-            </div>
-          </div>
-
-          <div class="action-footer">
-            <button id="btn-start-vis" class="btn btn-primary">Start Visualizer</button>
-            <button id="btn-stop-vis" class="btn btn-secondary" disabled>Stop Visualizer</button>
+          <div class="t-tabs" role="tablist">
+            <span class="t-tabs-pill" aria-hidden="true"></span>
+            <button class="t-tab" role="tab" aria-selected="true" data-mode="static">Static</button>
+            <button class="t-tab" role="tab" aria-selected="false" data-mode="breathing">Breathing</button>
+            <button class="t-tab" role="tab" aria-selected="false" data-mode="meteor">Meteor</button>
+            <button class="t-tab" role="tab" aria-selected="false" data-mode="flashing">Flashing</button>
+            <button class="t-tab" role="tab" aria-selected="false" data-mode="off">Power Off</button>
           </div>
         </div>
-      </section>
 
-      <!-- 2. Motherboard RGB Tab -->
-      <section id="tab-mb" class="panel-section">
-        <div class="vercel-card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Motherboard Mystic Light</h2>
-              <p class="card-subtitle">Zero Flash Wear RAM updates (packet[184] = 0x00) across all zones.</p>
-            </div>
-            <div class="header-tag">USB HID 0x1462:0x7C56</div>
+        <!-- 20 Color Palette Grid -->
+        <div class="section-block">
+          <div class="block-header">
+            <span class="section-label">Select Color (20 Presets)</span>
+            <span class="hint-text">Click any color to immediately apply</span>
           </div>
 
-          <div class="section-group">
-            <label class="field-label">Color Presets</label>
-            <div class="color-palette">
-              <button class="palette-pill" onclick="setPresetColor('red', '#ff0000')"><span class="color-dot dot-red"></span>Red</button>
-              <button class="palette-pill" onclick="setPresetColor('green', '#00ff00')"><span class="color-dot dot-green"></span>Green</button>
-              <button class="palette-pill" onclick="setPresetColor('blue', '#0000ff')"><span class="color-dot dot-blue"></span>Blue</button>
-              <button class="palette-pill" onclick="setPresetColor('cyan', '#00ffff')"><span class="color-dot dot-cyan"></span>Cyan</button>
-              <button class="palette-pill" onclick="setPresetColor('magenta', '#ff00ff')"><span class="color-dot dot-magenta"></span>Magenta</button>
-              <button class="palette-pill" onclick="setPresetColor('yellow', '#ffff00')"><span class="color-dot dot-yellow"></span>Yellow</button>
-              <button class="palette-pill" onclick="setPresetColor('white', '#ffffff')"><span class="color-dot dot-white"></span>White</button>
-              <button class="palette-pill" onclick="setPresetColor('orange', '#ff7800')"><span class="color-dot dot-orange"></span>Orange</button>
-              <button class="palette-pill" onclick="setPresetColor('off', '#000000')"><span class="color-dot dot-off"></span>Off</button>
-            </div>
-          </div>
+          <div class="color-grid" id="color-grid">
+            <!-- 20 Curated Colors -->
+            <button class="color-card active" data-name="Pure Red" data-hex="#ff0000" style="--c: #ff0000;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Pure Red</span>
+            </button>
+            <button class="color-card" data-name="Crimson" data-hex="#e11d48" style="--c: #e11d48;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Crimson</span>
+            </button>
+            <button class="color-card" data-name="Ruby" data-hex="#9f1239" style="--c: #9f1239;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Ruby</span>
+            </button>
+            <button class="color-card" data-name="Blood Orange" data-hex="#ea580c" style="--c: #ea580c;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Blood Orange</span>
+            </button>
+            <button class="color-card" data-name="Neon Orange" data-hex="#ff7800" style="--c: #ff7800;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Neon Orange</span>
+            </button>
 
-          <div class="grid-two">
-            <div class="form-field">
-              <label class="field-label" for="mb-color">Custom Hex / Color</label>
-              <div class="color-input-wrapper">
-                <input type="color" id="mb-color" value="#ff0000" class="input-color-picker">
-                <input type="text" id="mb-hex-input" value="#ff0000" maxlength="7" class="input-text">
-              </div>
-            </div>
+            <button class="color-card" data-name="Amber" data-hex="#f59e0b" style="--c: #f59e0b;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Amber</span>
+            </button>
+            <button class="color-card" data-name="Pure Yellow" data-hex="#ffff00" style="--c: #ffff00;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Yellow</span>
+            </button>
+            <button class="color-card" data-name="Lime" data-hex="#84cc16" style="--c: #84cc16;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Lime</span>
+            </button>
+            <button class="color-card" data-name="Pure Green" data-hex="#00ff00" style="--c: #00ff00;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Pure Green</span>
+            </button>
+            <button class="color-card" data-name="Emerald" data-hex="#10b981" style="--c: #10b981;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Emerald</span>
+            </button>
 
-            <div class="form-field">
-              <label class="field-label" for="mb-mode">Hardware Animation Effect</label>
-              <select id="mb-mode" class="input-select">
-                <option value="static" selected>Static Color</option>
-                <option value="rainbow_wave">Rainbow Wave</option>
-                <option value="breathing">Breathing</option>
-                <option value="meteor">Meteor</option>
-                <option value="flashing">Flashing</option>
-                <option value="double_flashing">Double Flashing</option>
-                <option value="fire">Fire</option>
-                <option value="visor">Visor</option>
-                <option value="marquee">Marquee</option>
-                <option value="stack">Stack</option>
-              </select>
-            </div>
-          </div>
+            <button class="color-card" data-name="Teal" data-hex="#14b8a6" style="--c: #14b8a6;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Teal</span>
+            </button>
+            <button class="color-card" data-name="Cyan" data-hex="#00ffff" style="--c: #00ffff;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Cyan</span>
+            </button>
+            <button class="color-card" data-name="Sky Blue" data-hex="#0ea5e9" style="--c: #0ea5e9;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Sky Blue</span>
+            </button>
+            <button class="color-card" data-name="Pure Blue" data-hex="#0000ff" style="--c: #0000ff;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Pure Blue</span>
+            </button>
+            <button class="color-card" data-name="Indigo" data-hex="#4338ca" style="--c: #4338ca;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Indigo</span>
+            </button>
 
-          <div class="action-footer">
-            <button id="btn-apply-mb" class="btn btn-primary">Apply Motherboard Lighting</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- 3. GPU RGB Tab -->
-      <section id="tab-gpu" class="panel-section">
-        <div class="vercel-card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Gigabyte RGB Fusion 2.0 (NVAPI)</h2>
-              <p class="card-subtitle">NVIDIA driver I2C block writes (~0.77ms latency) with safety probe verification.</p>
-            </div>
-            <div class="header-tag">0xAB Verified</div>
-          </div>
-
-          <div class="section-group">
-            <label class="field-label">GPU Presets</label>
-            <div class="color-palette">
-              <button class="palette-pill" onclick="setGpuPresetColor('red', '#ff0000')"><span class="color-dot dot-red"></span>Red</button>
-              <button class="palette-pill" onclick="setGpuPresetColor('blue', '#0000ff')"><span class="color-dot dot-blue"></span>Blue</button>
-              <button class="palette-pill" onclick="setGpuPresetColor('cyan', '#00ffff')"><span class="color-dot dot-cyan"></span>Cyan</button>
-              <button class="palette-pill" onclick="setGpuPresetColor('off', '#000000')"><span class="color-dot dot-off"></span>Off</button>
-            </div>
-          </div>
-
-          <div class="grid-two">
-            <div class="form-field">
-              <label class="field-label" for="gpu-color">GPU Custom Color</label>
-              <div class="color-input-wrapper">
-                <input type="color" id="gpu-color" value="#ff0000" class="input-color-picker">
-                <input type="text" id="gpu-hex-input" value="#ff0000" maxlength="7" class="input-text">
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label class="field-label" for="gpu-mode">GPU Mode</label>
-              <select id="gpu-mode" class="input-select">
-                <option value="static" selected>Static Color</option>
-                <option value="breathing">Breathing</option>
-                <option value="color_cycle">Color Cycle</option>
-                <option value="flashing">Flashing</option>
-                <option value="gradient">Gradient</option>
-                <option value="wave">Wave</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="action-footer">
-            <button id="btn-apply-gpu" class="btn btn-primary">Apply GPU Lighting</button>
+            <button class="color-card" data-name="Purple" data-hex="#a855f7" style="--c: #a855f7;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Purple</span>
+            </button>
+            <button class="color-card" data-name="Magenta" data-hex="#d946ef" style="--c: #d946ef;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Magenta</span>
+            </button>
+            <button class="color-card" data-name="Hot Pink" data-hex="#f43f5e" style="--c: #f43f5e;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Hot Pink</span>
+            </button>
+            <button class="color-card" data-name="Pure White" data-hex="#ffffff" style="--c: #ffffff;">
+              <span class="color-swatch"></span>
+              <span class="color-name">White</span>
+            </button>
+            <button class="color-card" data-name="Warm White" data-hex="#fff5ea" style="--c: #fff5ea;">
+              <span class="color-swatch"></span>
+              <span class="color-name">Warm White</span>
+            </button>
           </div>
         </div>
-      </section>
 
-      <!-- 4. System Sync Tab -->
-      <section id="tab-sync" class="panel-section">
-        <div class="vercel-card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">System-Wide RGB Synchronization</h2>
-              <p class="card-subtitle">Synchronize Motherboard fans, headers, and GPU logo across the entire rig.</p>
+        <!-- Custom Color & Live Active State Footer -->
+        <div class="active-status-bar">
+          <div class="active-info">
+            <div id="active-preview-dot" class="preview-glow" style="background: #ff0000;"></div>
+            <div class="active-labels">
+              <span class="active-title">ACTIVE HARDWARE STATE</span>
+              <!-- Transitions.dev Shimmer Text for current state -->
+              <span id="active-state-text" class="t-shimmer" data-text="Pure Red · Static">Pure Red · Static</span>
             </div>
-            <div class="header-tag">Unified Rig</div>
           </div>
 
-          <div class="sync-grid">
-            <div class="sync-card" onclick="syncSystemColor(255, 0, 0, 'Pure Red')">
-              <div class="sync-icon-box bg-red"></div>
-              <div class="sync-info">
-                <h3 class="sync-title">Pure Red Sync</h3>
-                <p class="sync-desc">Set Motherboard and GPU to 100% Pure Red (255, 0, 0).</p>
-              </div>
-              <button class="btn btn-secondary btn-sm">Activate</button>
-            </div>
-
-            <div class="sync-card" onclick="syncSystemColor(0, 0, 255, 'Deep Blue')">
-              <div class="sync-icon-box bg-blue"></div>
-              <div class="sync-info">
-                <h3 class="sync-title">Deep Blue Sync</h3>
-                <p class="sync-desc">Set Motherboard and GPU to Deep Blue (0, 0, 255).</p>
-              </div>
-              <button class="btn btn-secondary btn-sm">Activate</button>
-            </div>
-
-            <div class="sync-card" onclick="syncSystemOff()">
-              <div class="sync-icon-box bg-dark"></div>
-              <div class="sync-info">
-                <h3 class="sync-title">Power Down All RGB</h3>
-                <p class="sync-desc">Disable RGB lighting across all Motherboard & GPU channels.</p>
-              </div>
-              <button class="btn btn-danger btn-sm">Power Off</button>
-            </div>
+          <div class="custom-color-control">
+            <label for="custom-picker" class="picker-label">Custom:</label>
+            <input type="color" id="custom-picker" value="#ff0000" class="mini-picker">
+            <input type="text" id="custom-hex" value="#FF0000" maxlength="7" class="mini-hex">
           </div>
         </div>
-      </section>
+      </div>
     </main>
 
-    <!-- Transitions.dev Toast Notification Component -->
+    <!-- Transitions.dev Toast Notification -->
     <div id="toast-container" class="t-toast" data-open="false">
       <div class="toast-inner">
         <svg class="toast-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span id="toast-text">System ready</span>
+        <span id="toast-text">Hardware synced</span>
       </div>
     </div>
   </div>

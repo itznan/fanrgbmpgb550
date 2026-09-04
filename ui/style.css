@@ -1,40 +1,28 @@
 /* ==========================================================================
-   Vercel Theme & Transitions.dev Motion Tokens
+   Vercel Theme & Transitions.dev Motion Tokens - Single Page RGB Control
    ========================================================================== */
 
 :root {
-  /* ── Transitions.dev Motion Tokens Scale ─────────────────────────────── */
+  /* ── Motion Tokens Scale ─────────────────────────────────────────────── */
   --duration-stagger: 40ms;
   --duration-micro: 80ms;
   --duration-quick: 150ms;
   --duration-fast: 250ms;
   --duration-medium: 350ms;
-  --duration-slow: 400ms;
-  --duration-very-slow: 500ms;
 
   --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: ease-in-out;
-  --ease-out: ease-out;
   --ease-linear: linear;
-  --ease-bounce: cubic-bezier(0.34, 1.35, 0.64, 1);
 
-  /* ── Tabs Sliding Variables ── */
+  /* ── Tabs Sliding Tokens ── */
   --tabs-dur: 250ms;
   --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --tabs-bar-bg: #111111;
-  --tabs-pill-bg: #222222;
+  --tabs-bar-bg: #121214;
+  --tabs-pill-bg: #27272a;
   --tabs-text-muted: #888888;
-  --tabs-text-active: #ededed;
+  --tabs-text-active: #ffffff;
 
-  /* ── Toggle Switch Variables ── */
-  --toggle-dur: 350ms;
-  --toggle-travel: 16px;
-  --toggle-ov1: 1.5px;
-  --toggle-ov2: 0px;
-  --toggle-track: 150ms;
-  --toggle-ease: cubic-bezier(0.34, 1.35, 0.64, 1);
-
-  /* ── Toast Notification Variables ── */
+  /* ── Toast Tokens ── */
   --toast-open: 350ms;
   --toast-close: 250ms;
   --toast-distance: 14px;
@@ -42,30 +30,28 @@
   --toast-scale: 0.97;
   --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* ── Shimmer Text Variables ── */
-  --shimmer-dur: 2200ms;
-  --shimmer-base: #71717a;
+  /* ── Shimmer Text Tokens ── */
+  --shimmer-dur: 2400ms;
+  --shimmer-base: #a1a1aa;
   --shimmer-highlight: #ffffff;
   --shimmer-band: 350%;
   --shimmer-ease: linear;
 
-  /* ── Vercel Geist Dark Palette ── */
+  /* ── Vercel Geist Palette ── */
   --bg-canvas: #000000;
   --bg-surface: #0a0a0a;
   --bg-card: #111111;
   --bg-card-hover: #161616;
   --border-subtle: #222222;
   --border-active: #333333;
-  --border-highlight: #444444;
+  --border-highlight: #555555;
 
   --fg-primary: #ededed;
   --fg-secondary: #a1a1aa;
   --fg-muted: #71717a;
 
-  --accent-red: #e5484d;
-  --accent-red-glow: rgba(229, 72, 77, 0.3);
-  --accent-blue: #3b82f6;
   --accent-green: #10b981;
+  --accent-red: #ef4444;
 }
 
 /* Base Reset */
@@ -93,21 +79,18 @@ body {
   position: relative;
 }
 
-/* ==========================================================================
-   Vercel Top Navigation Bar
-   ========================================================================== */
+/* Header */
 .navbar {
-  height: 56px;
+  height: 52px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  z-index: 10;
 }
 
-.brand-badge {
+.brand {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -124,31 +107,21 @@ body {
   letter-spacing: -0.02em;
 }
 
-.brand-version {
-  font-size: 0.7rem;
-  color: var(--fg-muted);
-  background: #18181b;
-  border: 1px solid var(--border-subtle);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Status Indicators */
-.navbar-right {
+.status-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .status-indicator {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #121214;
+  background: #141416;
   border: 1px solid var(--border-subtle);
   padding: 4px 10px;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 500;
   color: var(--fg-secondary);
 }
@@ -163,20 +136,77 @@ body {
 
 .status-indicator.active .status-dot {
   background: var(--accent-green);
-  box-shadow: 0 0 8px var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
 }
 
 .status-indicator.error .status-dot {
   background: var(--accent-red);
-  box-shadow: 0 0 8px var(--accent-red);
+  box-shadow: 0 0 6px var(--accent-red);
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.vercel-card {
+  width: 100%;
+  max-width: 820px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-secondary);
+}
+
+.hint-text {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.badge-subtle {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: #1c1c1f;
+  border: 1px solid var(--border-subtle);
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
 }
 
 /* ==========================================================================
-   Transitions.dev: Tabs Sliding Component
+   Transitions.dev: Sliding Tabs (Effects)
    ========================================================================== */
 .t-tabs {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 2px;
   padding: 3px;
@@ -186,23 +216,25 @@ body {
 }
 
 .t-tab {
+  flex: 1;
   position: relative;
   appearance: none;
   border: 0;
   background: transparent;
-  height: 30px;
-  padding: 0 14px;
+  height: 34px;
+  padding: 0 12px;
   color: var(--tabs-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
   border-radius: 6px;
   z-index: 1;
   transition: color var(--tabs-dur) var(--tabs-ease);
+  text-align: center;
 }
 
 .t-tab:not([aria-selected="true"]):hover {
-  color: #cccccc;
+  color: #ffffff;
 }
 
 .t-tab[aria-selected="true"] {
@@ -213,7 +245,7 @@ body {
   position: absolute;
   top: 3px;
   left: 0;
-  height: 30px;
+  height: 34px;
   width: 0;
   background: var(--tabs-pill-bg);
   border-radius: 6px;
@@ -224,131 +256,106 @@ body {
   will-change: transform, width;
   z-index: 0;
   pointer-events: none;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* ==========================================================================
-   Main Content Panels
+   20-Color Preset Grid
    ========================================================================== */
-.main-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  justify-content: center;
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
 }
 
-.panel-section {
-  display: none;
-  width: 100%;
-  max-width: 820px;
-  opacity: 0;
-  transform: translateY(6px);
-  transition:
-    opacity var(--duration-fast) var(--ease-smooth-out),
-    transform var(--duration-fast) var(--ease-smooth-out);
-}
-
-.panel-section.active {
-  display: block;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Vercel Card Styling */
-.vercel-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.card-title {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: #ffffff;
-  letter-spacing: -0.01em;
-  margin-bottom: 4px;
-}
-
-.card-subtitle {
-  font-size: 0.85rem;
-  color: var(--fg-secondary);
-}
-
-.header-tag {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--fg-muted);
-  background: #18181b;
-  border: 1px solid var(--border-subtle);
-  padding: 4px 8px;
-  border-radius: 6px;
-  text-transform: uppercase;
-}
-
-/* Real-time Frequency Meter */
-.meter-box {
+.color-card {
+  appearance: none;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 24px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-smooth-out),
+    border-color var(--duration-fast) var(--ease-smooth-out),
+    background var(--duration-fast) var(--ease-smooth-out),
+    box-shadow var(--duration-fast) var(--ease-smooth-out);
 }
 
-.meter-track {
-  height: 20px;
+.color-card:hover {
+  background: #141416;
+  border-color: var(--border-highlight);
+  transform: translateY(-2px);
+}
+
+.color-card.active {
   background: #18181b;
-  border-radius: 4px;
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #ffffff, 0 0 14px var(--c);
+}
+
+.color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c);
+  flex-shrink: 0;
+  box-shadow: 0 0 8px var(--c);
+}
+
+.color-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #ededed;
+  white-space: nowrap;
   overflow: hidden;
-  margin-bottom: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  text-overflow: ellipsis;
 }
 
-.meter-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #991b1b 0%, #dc2626 70%, #ef4444 100%);
-  border-radius: 3px;
-  transition: width 0.06s linear;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
-}
-
-.meter-details {
+/* ==========================================================================
+   Active Status Footer Bar & Custom Picker
+   ========================================================================== */
+.active-status-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 14px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
 }
 
-.meter-stat {
+.active-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-glow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition:
+    background var(--duration-fast) var(--ease-smooth-out),
+    box-shadow var(--duration-fast) var(--ease-smooth-out);
+  box-shadow: 0 0 14px rgba(255, 0, 0, 0.5);
+}
+
+.active-labels {
   display: flex;
   flex-direction: column;
 }
 
-.meter-stat.right {
-  align-items: flex-end;
-}
-
-.stat-name {
+.active-title {
   font-size: 0.65rem;
   font-weight: 600;
   color: var(--fg-muted);
   letter-spacing: 0.05em;
   margin-bottom: 2px;
-}
-
-.stat-value {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #ffffff;
 }
 
 /* ==========================================================================
@@ -357,6 +364,8 @@ body {
 .t-shimmer {
   position: relative;
   display: inline-block;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--shimmer-base);
 }
 
@@ -387,334 +396,50 @@ body {
   100% { background-position: 0% 0; }
 }
 
-/* Settings Row & Transitions.dev Toggle Switch */
-.settings-row {
+/* Custom Color Controls */
+.custom-color-control {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.setting-item {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  gap: 8px;
 }
 
-.setting-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.setting-title {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #ffffff;
-  margin-bottom: 2px;
-}
-
-.setting-desc {
+.picker-label {
   font-size: 0.75rem;
+  font-weight: 500;
   color: var(--fg-muted);
 }
 
-.badge-pill {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--accent-red);
-  background: rgba(229, 72, 77, 0.1);
-  border: 1px solid rgba(229, 72, 77, 0.25);
-  padding: 4px 8px;
-  border-radius: 20px;
-}
-
-/* ==========================================================================
-   Transitions.dev: Toggle Switch Component
-   ========================================================================== */
-.t-toggle {
+.mini-picker {
   appearance: none;
-  width: 40px;
-  height: 24px;
-  background: #27272a;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--border-subtle);
-  border-radius: 24px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  cursor: pointer;
   padding: 2px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: background var(--toggle-track) var(--toggle-ease);
-  outline: none;
 }
 
-.t-toggle[data-on="true"] {
-  background: #ffffff;
-}
-
-.t-toggle-thumb {
-  width: 18px;
-  height: 18px;
-  background: #71717a;
-  border-radius: 50%;
-  translate: 0 0;
-  will-change: translate;
-}
-
-.t-toggle[data-on="true"] .t-toggle-thumb {
-  background: #000000;
-  translate: var(--toggle-travel) 0;
-}
-
-.t-toggle.is-init[data-on="true"] .t-toggle-thumb {
-  animation: t-toggle-on var(--toggle-dur) var(--toggle-ease) both;
-}
-
-.t-toggle.is-init[data-on="false"] .t-toggle-thumb {
-  animation: t-toggle-off var(--toggle-dur) var(--toggle-ease) both;
-}
-
-@keyframes t-toggle-on {
-  0% { translate: 0 0; }
-  55% { translate: calc(var(--toggle-travel) + var(--toggle-ov1)) 0; }
-  80% { translate: calc(var(--toggle-travel) - var(--toggle-ov2)) 0; }
-  100% { translate: var(--toggle-travel) 0; }
-}
-
-@keyframes t-toggle-off {
-  0% { translate: var(--toggle-travel) 0; }
-  55% { translate: calc(0px - var(--toggle-ov1)) 0; }
-  80% { translate: var(--toggle-ov2) 0; }
-  100% { translate: 0 0; }
-}
-
-/* ==========================================================================
-   Vercel Palette Pills & Controls
-   ========================================================================== */
-.section-group {
-  margin-bottom: 24px;
-}
-
-.field-label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--fg-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 10px;
-}
-
-.color-palette {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.palette-pill {
-  appearance: none;
+.mini-hex {
+  width: 78px;
+  height: 32px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  padding: 6px 12px;
+  color: #ffffff;
   font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--fg-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition:
-    border-color var(--duration-fast) var(--ease-smooth-out),
-    color var(--duration-fast) var(--ease-smooth-out),
-    transform var(--duration-fast) var(--ease-smooth-out);
-}
-
-.palette-pill:hover {
-  border-color: var(--border-highlight);
-  color: #ffffff;
-  transform: translateY(-1px);
-}
-
-.color-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.dot-red { background: #ff0000; box-shadow: 0 0 6px #ff0000; }
-.dot-green { background: #00ff00; box-shadow: 0 0 6px #00ff00; }
-.dot-blue { background: #0000ff; box-shadow: 0 0 6px #0000ff; }
-.dot-cyan { background: #00ffff; box-shadow: 0 0 6px #00ffff; }
-.dot-magenta { background: #ff00ff; box-shadow: 0 0 6px #ff00ff; }
-.dot-yellow { background: #ffff00; box-shadow: 0 0 6px #ffff00; }
-.dot-white { background: #ffffff; box-shadow: 0 0 6px #ffffff; }
-.dot-orange { background: #ff7800; box-shadow: 0 0 6px #ff7800; }
-.dot-off { background: #404040; }
-
-.grid-two {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.color-input-wrapper {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.input-color-picker {
-  appearance: none;
-  width: 44px;
-  height: 38px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  background: var(--bg-surface);
-  cursor: pointer;
-  padding: 3px;
-}
-
-.input-text, .input-select {
-  flex: 1;
-  height: 38px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  color: #ffffff;
-  font-size: 0.85rem;
-  padding: 0 12px;
+  font-family: monospace;
+  text-align: center;
   outline: none;
   transition: border-color var(--duration-fast) var(--ease-smooth-out);
 }
 
-.input-text:focus, .input-select:focus {
+.mini-hex:focus {
   border-color: #ffffff;
 }
 
-/* Vercel Action Buttons */
-.action-footer {
-  display: flex;
-  gap: 10px;
-}
-
-.btn {
-  appearance: none;
-  border: 0;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    opacity var(--duration-quick) var(--ease-smooth-out),
-    background var(--duration-quick) var(--ease-smooth-out),
-    border-color var(--duration-quick) var(--ease-smooth-out);
-}
-
-.btn-primary {
-  background: #ffffff;
-  color: #000000;
-}
-
-.btn-primary:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.btn-secondary {
-  background: #18181b;
-  border: 1px solid var(--border-subtle);
-  color: var(--fg-primary);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #27272a;
-  border-color: var(--border-active);
-}
-
-.btn-danger {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
-}
-
-.btn-danger:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
-.btn-sm {
-  height: 30px;
-  padding: 0 12px;
-  font-size: 0.78rem;
-}
-
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* System Sync Grid */
-.sync-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.sync-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  cursor: pointer;
-  transition:
-    border-color var(--duration-fast) var(--ease-smooth-out),
-    background var(--duration-fast) var(--ease-smooth-out);
-}
-
-.sync-card:hover {
-  background: #121214;
-  border-color: var(--border-highlight);
-}
-
-.sync-icon-box {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  margin-right: 14px;
-}
-
-.bg-red { background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
-.bg-blue { background: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
-.bg-dark { background: #27272a; }
-
-.sync-info {
-  flex: 1;
-}
-
-.sync-title {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #ffffff;
-  margin-bottom: 2px;
-}
-
-.sync-desc {
-  font-size: 0.75rem;
-  color: var(--fg-muted);
-}
-
 /* ==========================================================================
-   Transitions.dev: Toast Open/Close Component
+   Transitions.dev: Toast Notification Component
    ========================================================================== */
 .t-toast {
   position: fixed;
@@ -749,7 +474,7 @@ body {
   gap: 8px;
   background: #18181b;
   border: 1px solid var(--border-active);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 0.8rem;
@@ -762,10 +487,10 @@ body {
 }
 
 /* ==========================================================================
-   Accessibility: Reduced Motion
+   Accessibility: Reduced Motion Guard
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .t-tabs-pill, .t-tab, .t-toast, .t-shimmer::before, .t-toggle, .t-toggle-thumb {
+  .t-tabs-pill, .t-tab, .t-toast, .t-shimmer::before, .color-card {
     transition: none !important;
     animation: none !important;
   }

@@ -85,12 +85,67 @@ mod commands {
         }
     }
 
+    /// Single unified command to instantly set color + effect across Motherboard & GPU
+    #[tauri::command]
+    pub fn apply_lighting(
+        state: State<'_, AppState>,
+        r: u8,
+        g: u8,
+        b: u8,
+        mode: String,
+    ) -> Result<(), String> {
+        stop_vis_if_active(&state);
+        let mode_clean = mode.to_lowercase();
+        let is_off = (r == 0 && g == 0 && b == 0) || mode_clean == "off" || mode_clean == "disable";
+
+        let mb_mode = if is_off {
+            MODE_DISABLE
+        } else if mode_clean == "breathing" {
+            MODE_BREATHING
+        } else if mode_clean == "meteor" {
+            MODE_METEOR
+        } else if mode_clean == "flashing" {
+            MODE_FLASHING
+        } else {
+            MODE_STATIC
+        };
+
+        let mut errors = Vec::new();
+
+        // 1. Motherboard Update
+        match MSIMysticLightB550::open() {
+            Ok(mut controller) => {
+                if let Err(e) = controller.apply_color_to_all(r, g, b, mb_mode) {
+                    errors.push(format!("Motherboard error: {}", e));
+                }
+            }
+            Err(e) => errors.push(format!("Motherboard open error: {}", e)),
+        }
+
+        // 2. GPU Update
+        let mut gpu = GigabyteGPURGB::new(None);
+        if gpu.probe_and_connect() {
+            if is_off {
+                gpu.turn_off();
+            } else if mb_mode == MODE_BREATHING || mb_mode == MODE_METEOR {
+                gpu.apply_mode(GPU_MODE_BREATHING, r, g, b, GPU_SPEED_NORMAL, GPU_BRIGHTNESS_MAX);
+            } else if mb_mode == MODE_FLASHING {
+                gpu.apply_mode(GPU_MODE_FLASHING, r, g, b, GPU_SPEED_NORMAL, GPU_BRIGHTNESS_MAX);
+            } else {
+                gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join(" | "))
+        }
+    }
+
     #[tauri::command]
     pub fn set_mb_color(state: State<'_, AppState>, r: u8, g: u8, b: u8) -> Result<(), String> {
-        stop_vis_if_active(&state);
-        let mut controller = MSIMysticLightB550::open()?;
-        let mode = if r == 0 && g == 0 && b == 0 { MODE_DISABLE } else { MODE_STATIC };
-        controller.apply_color_to_all(r, g, b, mode)
+        apply_lighting(state, r, g, b, "static".to_string())
     }
 
     #[tauri::command]
@@ -110,51 +165,12 @@ mod commands {
 
     #[tauri::command]
     pub fn set_sync_color(state: State<'_, AppState>, r: u8, g: u8, b: u8) -> Result<(), String> {
-        stop_vis_if_active(&state);
-        let mode = if r == 0 && g == 0 && b == 0 { MODE_DISABLE } else { MODE_STATIC };
-        let mut errors = Vec::new();
-
-        match MSIMysticLightB550::open() {
-            Ok(mut controller) => {
-                if let Err(e) = controller.apply_color_to_all(r, g, b, mode) {
-                    errors.push(format!("Motherboard error: {}", e));
-                }
-            }
-            Err(e) => errors.push(format!("Motherboard open failed: {}", e)),
-        }
-
-        let mut gpu = GigabyteGPURGB::new(None);
-        if gpu.probe_and_connect() {
-            if mode == MODE_DISABLE {
-                gpu.turn_off();
-            } else {
-                gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
-            }
-        } else {
-            errors.push("GPU not detected via NVAPI".to_string());
-        }
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors.join(" | "))
-        }
+        apply_lighting(state, r, g, b, "static".to_string())
     }
 
     #[tauri::command]
     pub fn set_mb_mode(state: State<'_, AppState>, mode: String, r: u8, g: u8, b: u8) -> Result<(), String> {
-        stop_vis_if_active(&state);
-        let mode_clean = mode.to_lowercase();
-        if mode_clean == "disable" || mode_clean == "off" {
-            let mut controller = MSIMysticLightB550::open()?;
-            return controller.apply_color_to_all(0, 0, 0, MODE_DISABLE);
-        }
-        if let Some(mode_code) = get_animation_mode(&mode_clean) {
-            let mut controller = MSIMysticLightB550::open()?;
-            controller.apply_color_to_all(r, g, b, mode_code)
-        } else {
-            Err(format!("Unknown animation mode: {}", mode))
-        }
+        apply_lighting(state, r, g, b, mode)
     }
 
     #[tauri::command]
@@ -215,7 +231,7 @@ mod commands {
 
     #[tauri::command]
     pub fn turn_off_all(state: State<'_, AppState>) -> Result<(), String> {
-        set_sync_color(state, 0, 0, 0)
+        apply_lighting(state, 0, 0, 0, "off".to_string())
     }
 }
 
@@ -493,6 +509,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_mb_status,
             commands::get_gpu_status,
+            commands::apply_lighting,
             commands::set_mb_color,
             commands::set_gpu_color,
             commands::set_sync_color,
