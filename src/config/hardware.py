@@ -1,6 +1,6 @@
 """
-Configuration, Hardware constants, Zone offsets, and Color presets
-for MSI MPG B550 GAMING PLUS (MS-7C56).
+Hardware constants for MSI MPG B550 GAMING PLUS (MS-7C56).
+USB IDs, effect modes, speed/brightness settings, sync flags, zone offsets.
 """
 
 # USB Hardware IDs
@@ -77,32 +77,3 @@ ZONE_OFFSETS = {
 
 # Strict safety rule: byte 184 MUST always be 0x00 (RAM volatile only, no flash writes)
 SAVE_OFFSET = 184
-
-COLOR_PRESETS = {
-    "red": (255, 0, 0),
-    "green": (0, 255, 0),
-    "blue": (0, 0, 255),
-    "cyan": (0, 255, 255),
-    "magenta": (255, 0, 255),
-    "yellow": (255, 255, 0),
-    "white": (255, 255, 255),
-    "orange": (255, 120, 0),
-    "purple": (160, 32, 240),
-    "off": (0, 0, 0),
-}
-
-ANIMATION_MODES = {
-    "rainbow_wave": MODE_RAINBOW_WAVE,
-    "breathing": MODE_BREATHING,
-    "meteor": MODE_METEOR,
-    "flashing": MODE_FLASHING,
-    "double_flashing": MODE_DOUBLE_FLASHING,
-    "lightning": MODE_LIGHTNING,
-    "color_pulse": MODE_COLOR_PULSE,
-    "color_shift": MODE_COLOR_SHIFT,
-    "color_wave": MODE_COLOR_WAVE,
-    "marquee": MODE_MARQUEE,
-    "visor": MODE_VISOR,
-    "stack": MODE_STACK,
-    "fire": MODE_FIRE,
-}

@@ -41,7 +41,7 @@ def inspect_current_state():
     print("\n[OK] Device detected and readable without errors!")
 
 
-def test_color_change(r: int, g: int, b: int, color_name: str):
+def apply_color_change(r: int, g: int, b: int, color_name: str):
     print(f"\nApplying test color: {color_name} (R={r}, G={g}, B={b})...")
     with MSIMysticLightB550() as controller:
         success = controller.apply_color_to_all(r, g, b, mode=MODE_STATIC)
@@ -57,6 +57,6 @@ if __name__ == "__main__":
         g = int(sys.argv[3])
         b = int(sys.argv[4])
         name = sys.argv[5] if len(sys.argv) > 5 else f"RGB({r},{g},{b})"
-        test_color_change(r, g, b, name)
+        apply_color_change(r, g, b, name)
     else:
         inspect_current_state()

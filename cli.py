@@ -8,6 +8,35 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+
+def parse_color(args):
+    """Parse a color from CLI args.
+
+    Accepts:
+      - A single hex string: ``#RRGGBB`` or ``RRGGBB``  (returns remaining args)
+      - Three separate integers: ``R G B``               (returns remaining args)
+
+    Returns:
+      ``(r, g, b, remaining_args)`` on success, or raises ``ValueError``.
+    """
+    if not args:
+        raise ValueError("No color arguments provided.")
+
+    first = args[0]
+    hex_str = first.lstrip("#")
+    if len(hex_str) == 6 and all(c in "0123456789abcdefABCDEF" for c in hex_str):
+        r = int(hex_str[0:2], 16)
+        g = int(hex_str[2:4], 16)
+        b = int(hex_str[4:6], 16)
+        return r, g, b, args[1:]
+
+    if len(args) >= 3:
+        r, g, b = int(args[0]), int(args[1]), int(args[2])
+        return r, g, b, args[3:]
+
+    raise ValueError(f"Cannot parse color from: {args}")
+
+
 from src.controller import MSIMysticLightB550
 from src.gpu_controller import (
     GigabyteGPURGB,
@@ -44,26 +73,36 @@ def print_help():
     print("""
 MSI Motherboard & Gigabyte GPU RGB Controller CLI
 
+Color values can be specified as:
+  - A preset name : red, blue, green, off, ...
+  - Hex           : #RRGGBB  or  RRGGBB  (e.g. #FF0000 or FF0000)
+  - RGB integers  : R G B               (e.g. 255 0 0)
+
 === Motherboard Commands ===
   python cli.py status
   python cli.py <preset_name>             (red, blue, green, off, etc.)
+  python cli.py <#RRGGBB|RRGGBB>         (e.g. #FF0000 or FF0000)
   python cli.py <r> <g> <b>               (e.g. 255 0 0)
   python cli.py mode <animation_mode>     (rainbow_wave, breathing, meteor, etc.)
+  python cli.py mode <animation_mode> <#RRGGBB|R G B>
 
 === GPU Commands ===
   python cli.py gpu status                (Checks NVAPI connection and I2C address)
   python cli.py gpu <preset_name>         (e.g. gpu red, gpu blue, gpu off)
+  python cli.py gpu <#RRGGBB|RRGGBB>     (e.g. gpu #FF0000 or gpu FF0000)
   python cli.py gpu <r> <g> <b>           (e.g. gpu 255 0 0)
   python cli.py gpu mode <mode_name>      (breathing, flash, color_cycle, wave)
 
 === Synchronized Control (Motherboard + GPU) ===
   python cli.py sync <preset_name>        (e.g. sync red, sync off)
+  python cli.py sync <#RRGGBB|RRGGBB>    (e.g. sync #FF0000 or sync FF0000)
   python cli.py sync <r> <g> <b>          (e.g. sync 255 0 0)
   python cli.py bass [--gpu]              (Pure red bass visualizer synced to Motherboard & GPU)
 
 Examples:
   python cli.py bass --gpu                # Bass visualizer pulsing Motherboard AND GPU logo
   python cli.py sync red                  # Set entire PC to pure red
+  python cli.py sync #FF0000              # Same as above, using hex
   python cli.py gpu mode breathing        # GPU pulsing red breathing mode
   python cli.py sync off                  # Power down all RGB across the system
 """)
@@ -143,14 +182,13 @@ def handle_gpu_command(args):
         print(f"[OK] GPU mode set to {mode_name.upper()}.")
         return
 
-    if len(args) >= 3:
-        try:
-            r, g, b = int(args[0]), int(args[1]), int(args[2])
-            gpu.apply_color(r, g, b)
-            print(f"[OK] GPU set to RGB({r}, {g}, {b})")
-            return
-        except ValueError:
-            pass
+    try:
+        r, g, b, _ = parse_color(args)
+        gpu.apply_color(r, g, b)
+        print(f"[OK] GPU set to RGB({r}, {g}, {b})")
+        return
+    except ValueError:
+        pass
 
     print_help()
 
@@ -169,15 +207,12 @@ def handle_sync_command(args):
         mode = MODE_DISABLE
     elif sub in COLOR_PRESETS:
         r, g, b = COLOR_PRESETS[sub]
-    elif len(args) >= 3:
+    else:
         try:
-            r, g, b = int(args[0]), int(args[1]), int(args[2])
+            r, g, b, _ = parse_color(args)
         except ValueError:
             print_help()
             return
-    else:
-        print_help()
-        return
 
     # 1. Update Motherboard
     try:
@@ -243,11 +278,9 @@ def main():
                 return
 
             r, g, b = (255, 0, 0)
-            if len(sys.argv) >= 6:
+            if len(sys.argv) >= 4:
                 try:
-                    r = int(sys.argv[3])
-                    g = int(sys.argv[4])
-                    b = int(sys.argv[5])
+                    r, g, b, _ = parse_color(sys.argv[3:])
                 except ValueError:
                     pass
 
@@ -255,16 +288,13 @@ def main():
             print(f"[OK] Switched motherboard mode to {mode_name.upper()} (R={r}, G={g}, B={b})")
             return
 
-        if len(sys.argv) >= 4:
-            try:
-                r = int(sys.argv[1])
-                g = int(sys.argv[2])
-                b = int(sys.argv[3])
-                controller.apply_color_to_all(r, g, b, mode=MODE_STATIC)
-                print(f"[OK] Set all motherboard zones to custom RGB({r}, {g}, {b})")
-            except ValueError:
-                print_help()
+        try:
+            r, g, b, _ = parse_color(sys.argv[1:])
+            controller.apply_color_to_all(r, g, b, mode=MODE_STATIC)
+            print(f"[OK] Set all motherboard zones to custom RGB({r}, {g}, {b})")
             return
+        except ValueError:
+            pass
 
         print_help()
 
