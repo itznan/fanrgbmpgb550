@@ -5,11 +5,11 @@ Ultra-fast, lightweight Rust CLI controller and real-time audio visualizer for:
 2. **Gigabyte GeForce RTX 3060 Ti GAMING OC** Graphics Card (NVIDIA NVAPI I2C 0xAB Probe)
 
 Re-engineered from Python to Rust for performance & minimal resource usage:
-* ⚡ **Ultra-low ~5 MB RAM footprint** (vs ~80 MB in Python)
-* ⚡ **Instant CLI execution (< 5 ms)**
-* 🛡️ **Zero Flash Wear Guarantee** (`save_data = 0x00` RAM volatile updates)
-* 🎧 **WASAPI Loopback Pure Red Bass Visualizer**
-* 📦 **Single standalone `.exe` binary** with zero runtime dependencies
+* **Ultra-low ~5 MB RAM footprint** (vs ~80 MB in Python)
+* **Instant CLI execution (< 5 ms)**
+* **Zero Flash Wear Guarantee** (`save_data = 0x00` RAM volatile updates)
+* **WASAPI Loopback Pure Red Bass Visualizer**
+* **Single standalone `.exe` binary** with zero runtime dependencies
 
 ---
 
