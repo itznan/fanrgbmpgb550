@@ -1,15 +1,14 @@
-# MSI MPG B550 & Gigabyte GPU RGB Controller (Rust + Tauri Edition)
+# MSI MPG B550 & Gigabyte GPU RGB Controller (Rust CLI Edition)
 
-Ultra-fast, lightweight Rust CLI controller and modern Tauri v2 Desktop GUI for:
+Ultra-fast, lightweight Rust CLI controller for:
 1. **MSI MPG B550 GAMING PLUS (MS-7C56)** Motherboard (USB HID Feature Report 0x52)
 2. **Gigabyte GeForce RTX 3060 Ti GAMING OC** Graphics Card (NVIDIA NVAPI I2C 0xAB Probe)
 
-Features:
-* **Dual Execution Mode**: Double-click `fanrgb.exe` to launch the **Tauri GUI**, or pass terminal arguments (`fanrgb sync red`) for instant **CLI mode**.
-* **Modern Dark GUI Dashboard**: Control Motherboard & GPU lighting, presets, animation modes, and audio visualizer with a sleek dashboard.
-* **Ultra-low Resource Footprint**: ~5 MB RAM footprint in CLI mode and minimal CPU/RAM overhead in GUI mode.
-* **Zero Flash Wear Guarantee**: Volatile RAM updates (`save_data = 0x00`) to protect motherboard EEPROM.
-* **WASAPI Loopback Pure Red Bass Visualizer**: Real-time 28-90 Hz sub-bass audio reactive lighting.
+## Key Features
+* **Pure Fast CLI**: Instant execution with ~5 MB RAM footprint and zero webview/GUI overhead.
+* **Zero Flash Wear Guarantee**: Volatile RAM updates (`save_data = 0x00`) protect motherboard EEPROM from wear.
+* **WASAPI Loopback Pure Red Bass Visualizer**: Real-time 28–90 Hz sub-bass reactive lighting with terminal ASCII meter.
+* **Synchronized Control**: Easily match colors and effects across motherboard and graphics card with a single command.
 
 ---
 
@@ -23,26 +22,35 @@ The compiled binary will be generated at `target/release/fanrgb.exe`.
 
 ---
 
-## Launching the Application
+## Command-Line Usage
 
-### 1. Modern Desktop GUI (Tauri)
-Simply double-click `fanrgb.exe` or run without arguments:
 ```powershell
-.\target\release\fanrgb.exe
-```
+# Display help and available commands
+.\target\release\fanrgb.exe help
 
-### 2. Fast Command-Line Interface (CLI)
-```powershell
 # Check hardware status
 .\target\release\fanrgb.exe status
 .\target\release\fanrgb.exe gpu status
 
-# Synchronize system lighting to Red
+# Set Motherboard color
+.\target\release\fanrgb.exe red
+.\target\release\fanrgb.exe #FF5500
+.\target\release\fanrgb.exe 255 80 0
+.\target\release\fanrgb.exe mode breathing 255 0 0
+.\target\release\fanrgb.exe off
+
+# Set GPU color & modes
+.\target\release\fanrgb.exe gpu red
+.\target\release\fanrgb.exe gpu #00FFCC
+.\target\release\fanrgb.exe gpu mode breathing
+.\target\release\fanrgb.exe gpu off
+
+# Synchronize Motherboard + GPU
 .\target\release\fanrgb.exe sync red
-
-# Start Pure Red Bass Visualizer synced across Motherboard & GPU
-.\target\release\fanrgb.exe bass --gpu
-
-# Power off all RGB
+.\target\release\fanrgb.exe sync #00FF00
 .\target\release\fanrgb.exe sync off
+
+# Real-Time Pure Red Sub-Bass Visualizer (WASAPI Loopback)
+.\target\release\fanrgb.exe bass
+.\target\release\fanrgb.exe bass --gpu
 ```
