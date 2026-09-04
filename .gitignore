@@ -1,3 +1,4 @@
 /target
+/gen
 **/*.rs.bk
 *.exe

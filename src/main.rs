@@ -1,4 +1,4 @@
-//! Unified CLI for MSI MPG B550 Motherboard & Gigabyte GPU RGB.
+//! Unified CLI & Tauri GUI for MSI MPG B550 Motherboard & Gigabyte GPU RGB.
 
 mod config;
 mod controller;
@@ -9,11 +9,180 @@ use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+use serde::{Deserialize, Serialize};
+use tauri::State;
+
 use config::*;
 use controller::*;
 use gpu::*;
 use visualizer::*;
 
+pub struct AppState {
+    pub vis_running: Arc<AtomicBool>,
+    pub vis_metrics: Arc<Mutex<AudioMetrics>>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ZoneStatus {
+    pub name: String,
+    pub effect: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub brightness: u8,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GpuStatus {
+    pub detected: bool,
+    pub name: String,
+    pub address: String,
+}
+
+mod commands {
+    use super::*;
+
+    #[tauri::command]
+    pub fn get_mb_status() -> Result<Vec<ZoneStatus>, String> {
+        let controller = MSIMysticLightB550::open()?;
+        let packet = controller.read_packet()?;
+        let mut zones = Vec::new();
+        for z in &["j_rgb_1", "j_rainbow_1", "j_rainbow_2", "on_board_led"] {
+            if let Some(info) = controller.get_zone_info(&packet, z) {
+                zones.push(ZoneStatus {
+                    name: z.to_string(),
+                    effect: info.effect,
+                    r: info.primary_rgb.0,
+                    g: info.primary_rgb.1,
+                    b: info.primary_rgb.2,
+                    brightness: info.brightness,
+                });
+            }
+        }
+        Ok(zones)
+    }
+
+    #[tauri::command]
+    pub fn get_gpu_status() -> Result<GpuStatus, String> {
+        let mut gpu = GigabyteGPURGB::new(None);
+        if gpu.probe_and_connect() {
+            Ok(GpuStatus {
+                detected: true,
+                name: gpu.gpu_name.clone(),
+                address: format!("0x{:02X}", gpu.active_address.unwrap_or(0)),
+            })
+        } else {
+            Err("GPU not detected".to_string())
+        }
+    }
+
+    #[tauri::command]
+    pub fn set_mb_color(r: u8, g: u8, b: u8) -> Result<(), String> {
+        let mut controller = MSIMysticLightB550::open()?;
+        controller.apply_color_to_all(r, g, b, MODE_STATIC)
+    }
+
+    #[tauri::command]
+    pub fn set_gpu_color(r: u8, g: u8, b: u8) -> Result<(), String> {
+        let mut gpu = GigabyteGPURGB::new(None);
+        if gpu.probe_and_connect() {
+            gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
+            Ok(())
+        } else {
+            Err("GPU not connected".to_string())
+        }
+    }
+
+    #[tauri::command]
+    pub fn set_sync_color(r: u8, g: u8, b: u8) -> Result<(), String> {
+        let mode = if r == 0 && g == 0 && b == 0 { MODE_DISABLE } else { MODE_STATIC };
+        if let Ok(mut controller) = MSIMysticLightB550::open() {
+            let _ = controller.apply_color_to_all(r, g, b, mode);
+        }
+        let mut gpu = GigabyteGPURGB::new(None);
+        if gpu.probe_and_connect() {
+            if mode == MODE_DISABLE {
+                gpu.turn_off();
+            } else {
+                gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
+            }
+        }
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub fn set_mb_mode(mode: String, r: u8, g: u8, b: u8) -> Result<(), String> {
+        if let Some(mode_code) = get_animation_mode(&mode) {
+            let mut controller = MSIMysticLightB550::open()?;
+            controller.apply_color_to_all(r, g, b, mode_code)
+        } else {
+            Err(format!("Unknown mode: {}", mode))
+        }
+    }
+
+    #[tauri::command]
+    pub fn set_gpu_mode(mode: String) -> Result<(), String> {
+        let mode_code = match mode.to_lowercase().as_str() {
+            "static" => GPU_MODE_STATIC,
+            "breathing" => GPU_MODE_BREATHING,
+            "color_cycle" => GPU_MODE_COLOR_CYCLE,
+            "flashing" => GPU_MODE_FLASHING,
+            "gradient" => GPU_MODE_GRADIENT,
+            "wave" => GPU_MODE_WAVE,
+            _ => return Err(format!("Unknown GPU mode: {}", mode)),
+        };
+
+        let mut gpu = GigabyteGPURGB::new(None);
+        if gpu.probe_and_connect() {
+            gpu.apply_mode(mode_code, 255, 0, 0, GPU_SPEED_NORMAL, GPU_BRIGHTNESS_MAX);
+            Ok(())
+        } else {
+            Err("GPU not connected".to_string())
+        }
+    }
+
+    #[tauri::command]
+    pub fn start_visualizer(state: State<'_, AppState>, sync_gpu: bool) -> Result<(), String> {
+        if state.vis_running.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
+        state.vis_running.store(true, Ordering::SeqCst);
+        let running = Arc::clone(&state.vis_running);
+        let metrics = Arc::clone(&state.vis_metrics);
+
+        start_audio_capture(Arc::clone(&running), Arc::clone(&metrics), 28.0, 90.0);
+
+        let config = VisualizerConfig {
+            mode: "hybrid".to_string(),
+            sync_gpu,
+            sensitivity: 1.0,
+            threshold: 0.05,
+            gamma: 1.8,
+            decay: 0.82,
+            min_brightness: 0,
+        };
+
+        std::thread::spawn(move || {
+            run_visualizer(running, metrics, config);
+        });
+
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub fn stop_visualizer(state: State<'_, AppState>) -> Result<(), String> {
+        state.vis_running.store(false, Ordering::SeqCst);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub fn turn_off_all() -> Result<(), String> {
+        set_sync_color(0, 0, 0)
+    }
+}
+
+// CLI Command Parser
 fn parse_color(args: &[String]) -> Result<((u8, u8, u8), &[String]), String> {
     if args.is_empty() {
         return Err("No color arguments provided.".to_string());
@@ -45,7 +214,7 @@ fn parse_color(args: &[String]) -> Result<((u8, u8, u8), &[String]), String> {
 fn print_help() {
     println!(
         r#"
-MSI Motherboard & Gigabyte GPU RGB Controller CLI (Rust Edition)
+MSI Motherboard & Gigabyte GPU RGB Controller CLI & GUI (Rust Edition)
 
 Color values can be specified as:
   - A preset name : red, blue, green, off, ...
@@ -58,27 +227,15 @@ Color values can be specified as:
   fanrgb <#RRGGBB|RRGGBB>         (e.g. #FF0000 or FF0000)
   fanrgb <r> <g> <b>               (e.g. 255 0 0)
   fanrgb mode <animation_mode>     (rainbow_wave, breathing, meteor, etc.)
-  fanrgb mode <animation_mode> <#RRGGBB|R G B>
 
 === GPU Commands ===
   fanrgb gpu status                (Checks NVAPI connection and I2C address)
   fanrgb gpu <preset_name>         (e.g. gpu red, gpu blue, gpu off)
-  fanrgb gpu <#RRGGBB|RRGGBB>     (e.g. gpu #FF0000 or gpu FF0000)
-  fanrgb gpu <r> <g> <b>           (e.g. gpu 255 0 0)
   fanrgb gpu mode <mode_name>      (breathing, flash, color_cycle, wave)
 
 === Synchronized Control (Motherboard + GPU) ===
   fanrgb sync <preset_name>        (e.g. sync red, sync off)
-  fanrgb sync <#RRGGBB|RRGGBB>    (e.g. sync #FF0000 or sync FF0000)
-  fanrgb sync <r> <g> <b>          (e.g. sync 255 0 0)
   fanrgb bass [--gpu]              (Pure red bass visualizer synced to Motherboard & GPU)
-
-Examples:
-  fanrgb bass --gpu                # Bass visualizer pulsing Motherboard AND GPU logo
-  fanrgb sync red                  # Set entire PC to pure red
-  fanrgb sync #FF0000              # Same as above, using hex
-  fanrgb gpu mode breathing        # GPU pulsing red breathing mode
-  fanrgb sync off                  # Power down all RGB across the system
 "#
     );
 }
@@ -121,110 +278,7 @@ fn run_cli_bass(sync_gpu: bool) {
     run_visualizer(running, metrics, config);
 }
 
-fn handle_gpu_command(args: &[String]) {
-    if args.is_empty() {
-        print_help();
-        return;
-    }
-
-    let sub = args[0].to_lowercase();
-    let mut gpu = GigabyteGPURGB::new(None);
-
-    if sub == "status" {
-        if gpu.probe_and_connect() {
-            println!("[OK] Gigabyte GPU Detected: {}", gpu.gpu_name);
-            println!(
-                "[OK] Controller I2C Address: 0x{:02X} (Port 1)",
-                gpu.active_address.unwrap()
-            );
-        } else {
-            println!("[FAIL] Could not detect Gigabyte GPU RGB controller.");
-        }
-        return;
-    }
-
-    if !gpu.probe_and_connect() {
-        println!("[FAIL] Unable to connect to GPU RGB controller via NVAPI.");
-        return;
-    }
-
-    if sub == "off" {
-        gpu.turn_off();
-        println!("[OK] GPU RGB turned OFF.");
-        return;
-    }
-
-    if sub == "mode" && args.len() >= 2 {
-        let mode_name = args[1].to_lowercase();
-        let mode_code = match mode_name.as_str() {
-            "static" => GPU_MODE_STATIC,
-            "breathing" | "pulse" => GPU_MODE_BREATHING,
-            "color_cycle" => GPU_MODE_COLOR_CYCLE,
-            "flash" | "flashing" => GPU_MODE_FLASHING,
-            "double_flash" => GPU_MODE_DUAL_FLASHING,
-            "gradient" => GPU_MODE_GRADIENT,
-            "wave" => GPU_MODE_WAVE,
-            _ => {
-                println!("Unknown GPU mode: '{}'.", mode_name);
-                return;
-            }
-        };
-
-        gpu.apply_mode(mode_code, 255, 0, 0, GPU_SPEED_NORMAL, GPU_BRIGHTNESS_MAX);
-        println!("[OK] GPU mode set to {}.", mode_name.to_uppercase());
-        return;
-    }
-
-    if let Ok(((r, g, b), _)) = parse_color(args) {
-        gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
-        println!("[OK] GPU set to RGB({}, {}, {})", r, g, b);
-        return;
-    }
-
-    print_help();
-}
-
-fn handle_sync_command(args: &[String]) {
-    if args.is_empty() {
-        print_help();
-        return;
-    }
-
-    let sub = args[0].to_lowercase();
-    let ((r, g, b), mode) = if sub == "off" {
-        ((0, 0, 0), MODE_DISABLE)
-    } else if let Ok((rgb, _)) = parse_color(args) {
-        (rgb, MODE_STATIC)
-    } else {
-        print_help();
-        return;
-    };
-
-    // 1. Update Motherboard
-    match MSIMysticLightB550::open() {
-        Ok(mut controller) => {
-            if let Err(e) = controller.apply_color_to_all(r, g, b, mode) {
-                eprintln!("[Warning] Motherboard update error: {}", e);
-            }
-        }
-        Err(e) => eprintln!("[Warning] Could not open motherboard: {}", e),
-    }
-
-    // 2. Update GPU
-    let mut gpu = GigabyteGPURGB::new(None);
-    if gpu.probe_and_connect() {
-        if mode == MODE_DISABLE {
-            gpu.turn_off();
-        } else {
-            gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
-        }
-    }
-
-    println!("[OK] Synchronized Motherboard + GPU to RGB({}, {}, {})", r, g, b);
-}
-
-fn main() {
-    let args: Vec<String> = env::args().collect();
+fn run_cli(args: &[String]) {
     if args.len() < 2 {
         print_help();
         return;
@@ -239,12 +293,86 @@ fn main() {
     }
 
     if cmd == "gpu" {
-        handle_gpu_command(&args[2..]);
+        let gpu_args = &args[2..];
+        if gpu_args.is_empty() {
+            print_help();
+            return;
+        }
+        let sub = gpu_args[0].to_lowercase();
+        let mut gpu = GigabyteGPURGB::new(None);
+        if sub == "status" {
+            if gpu.probe_and_connect() {
+                println!("[OK] Gigabyte GPU Detected: {}", gpu.gpu_name);
+                println!("[OK] Controller I2C Address: 0x{:02X}", gpu.active_address.unwrap());
+            } else {
+                println!("[FAIL] Could not detect Gigabyte GPU RGB controller.");
+            }
+            return;
+        }
+        if !gpu.probe_and_connect() {
+            println!("[FAIL] Unable to connect to GPU RGB controller via NVAPI.");
+            return;
+        }
+        if sub == "off" {
+            gpu.turn_off();
+            println!("[OK] GPU RGB turned OFF.");
+            return;
+        }
+        if sub == "mode" && gpu_args.len() >= 2 {
+            let mode_name = gpu_args[1].to_lowercase();
+            let mode_code = match mode_name.as_str() {
+                "static" => GPU_MODE_STATIC,
+                "breathing" | "pulse" => GPU_MODE_BREATHING,
+                "color_cycle" => GPU_MODE_COLOR_CYCLE,
+                "flash" | "flashing" => GPU_MODE_FLASHING,
+                "double_flash" => GPU_MODE_DUAL_FLASHING,
+                "gradient" => GPU_MODE_GRADIENT,
+                "wave" => GPU_MODE_WAVE,
+                _ => {
+                    println!("Unknown GPU mode: '{}'.", mode_name);
+                    return;
+                }
+            };
+            gpu.apply_mode(mode_code, 255, 0, 0, GPU_SPEED_NORMAL, GPU_BRIGHTNESS_MAX);
+            println!("[OK] GPU mode set to {}.", mode_name.to_uppercase());
+            return;
+        }
+        if let Ok(((r, g, b), _)) = parse_color(gpu_args) {
+            gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
+            println!("[OK] GPU set to RGB({}, {}, {})", r, g, b);
+            return;
+        }
+        print_help();
         return;
     }
 
     if cmd == "sync" {
-        handle_sync_command(&args[2..]);
+        let sync_args = &args[2..];
+        if sync_args.is_empty() {
+            print_help();
+            return;
+        }
+        let sub = sync_args[0].to_lowercase();
+        let ((r, g, b), mode) = if sub == "off" {
+            ((0, 0, 0), MODE_DISABLE)
+        } else if let Ok((rgb, _)) = parse_color(sync_args) {
+            (rgb, MODE_STATIC)
+        } else {
+            print_help();
+            return;
+        };
+        if let Ok(mut controller) = MSIMysticLightB550::open() {
+            let _ = controller.apply_color_to_all(r, g, b, mode);
+        }
+        let mut gpu = GigabyteGPURGB::new(None);
+        if gpu.probe_and_connect() {
+            if mode == MODE_DISABLE {
+                gpu.turn_off();
+            } else {
+                gpu.apply_color(r, g, b, GPU_BRIGHTNESS_MAX);
+            }
+        }
+        println!("[OK] Synchronized Motherboard + GPU to RGB({}, {}, {})", r, g, b);
         return;
     }
 
@@ -282,21 +410,15 @@ fn main() {
             } else {
                 (255, 0, 0)
             };
-
             if let Err(e) = controller.apply_color_to_all(r, g, b, mode_code) {
                 eprintln!("[FAIL] Error setting motherboard mode: {}", e);
             } else {
                 println!(
                     "[OK] Switched motherboard mode to {} (R={}, G={}, B={})",
                     mode_name.to_uppercase(),
-                    r,
-                    g,
-                    b
+                    r, g, b
                 );
             }
-            return;
-        } else {
-            println!("Unknown animation mode: '{}'.", mode_name);
             return;
         }
     }
@@ -312,4 +434,37 @@ fn main() {
     }
 
     print_help();
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    
+    // If command-line arguments are passed, execute in CLI mode directly
+    if args.len() > 1 {
+        run_cli(&args);
+        return;
+    }
+
+    // If launched without CLI arguments, run Tauri GUI!
+    let app_state = AppState {
+        vis_running: Arc::new(AtomicBool::new(false)),
+        vis_metrics: Arc::new(Mutex::new(AudioMetrics::default())),
+    };
+
+    tauri::Builder::default()
+        .manage(app_state)
+        .invoke_handler(tauri::generate_handler![
+            commands::get_mb_status,
+            commands::get_gpu_status,
+            commands::set_mb_color,
+            commands::set_gpu_color,
+            commands::set_sync_color,
+            commands::set_mb_mode,
+            commands::set_gpu_mode,
+            commands::start_visualizer,
+            commands::stop_visualizer,
+            commands::turn_off_all
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri GUI application");
 }
