@@ -18,10 +18,33 @@ pub fn start_audio_capture(
     metrics: Arc<Mutex<AudioMetrics>>,
     bass_min: f32,
     bass_max: f32,
+    device_name: Option<String>,
 ) {
     thread::spawn(move || {
         let host = cpal::default_host();
-        let device = match host.default_output_device() {
+        let device = if let Some(ref target) = device_name {
+            let target_lower = target.to_lowercase();
+            let mut found = None;
+            if let Ok(devices) = host.output_devices() {
+                for dev in devices {
+                    if let Ok(name) = dev.name() {
+                        if name.to_lowercase().contains(&target_lower) {
+                            println!("[Visualizer Audio] Using specified audio device: {}", name);
+                            found = Some(dev);
+                            break;
+                        }
+                    }
+                }
+            }
+            if found.is_none() {
+                eprintln!("[Visualizer Audio Warning] Device '{}' not found, falling back to default.", target);
+            }
+            found.or_else(|| host.default_output_device())
+        } else {
+            host.default_output_device()
+        };
+
+        let device = match device {
             Some(dev) => dev,
             None => {
                 eprintln!("[Visualizer Audio Error]: Default output device not found.");
@@ -29,6 +52,10 @@ pub fn start_audio_capture(
                 return;
             }
         };
+
+        if let Ok(name) = device.name() {
+            println!("[Visualizer Audio] Capturing from: {}", name);
+        }
 
         let config = match device.default_output_config() {
             Ok(cfg) => cfg,
@@ -42,7 +69,7 @@ pub fn start_audio_capture(
         let sample_rate = config.sample_rate().0 as f32;
         let channels = config.channels() as usize;
 
-        let block_size = 1024;
+        let block_size = 8192;
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(block_size);
 
@@ -52,12 +79,22 @@ pub fn start_audio_capture(
 
         // Calculate frequency bin indices for bass_min..bass_max
         let freq_step = sample_rate / block_size as f32;
-        let bass_bins: Vec<usize> = (0..block_size / 2)
+        let mut bass_bins: Vec<usize> = (1..block_size / 2)
             .filter(|&i| {
                 let freq = i as f32 * freq_step;
                 freq >= bass_min && freq <= bass_max
             })
             .collect();
+        if bass_bins.is_empty() {
+            bass_bins.push(1);
+        }
+        println!(
+            "[Visualizer Audio] Sub-bass window {:.1} Hz - {:.1} Hz mapped to {} FFT bins (bin step: {:.2} Hz)",
+            bass_min,
+            bass_max,
+            bass_bins.len(),
+            freq_step
+        );
 
         let pcm_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
         let pcm_buf_clone = Arc::clone(&pcm_buffer);
@@ -77,6 +114,21 @@ pub fn start_audio_capture(
                 err_fn,
                 None,
             ),
+            cpal::SampleFormat::I16 => {
+                let pcm_buf_i16 = Arc::clone(&pcm_buffer);
+                device.build_input_stream(
+                    &config.into(),
+                    move |data: &[i16], _| {
+                        let mut buf = pcm_buf_i16.lock().unwrap();
+                        for chunk in data.chunks_exact(channels) {
+                            let mono = chunk.iter().map(|&s| s as f32 / 32768.0).sum::<f32>() / channels as f32;
+                            buf.push(mono);
+                        }
+                    },
+                    err_fn,
+                    None,
+                )
+            }
             _ => {
                 eprintln!("[Visualizer Audio Error]: Unsupported sample format.");
                 running.store(false, Ordering::SeqCst);
@@ -99,22 +151,30 @@ pub fn start_audio_capture(
             return;
         }
 
+        let mut sliding_window = vec![0.0f32; block_size];
         let mut prev_bass = 0.0f32;
 
         while running.load(Ordering::SeqCst) {
-            thread::sleep(std::time::Duration::from_millis(10));
+            thread::sleep(std::time::Duration::from_millis(8));
 
-            let samples = {
+            let new_samples: Vec<f32> = {
                 let mut buf = pcm_buffer.lock().unwrap();
-                if buf.len() >= block_size {
-                    let chunk: Vec<f32> = buf.drain(..block_size).collect();
-                    chunk
-                } else {
+                if buf.is_empty() {
                     continue;
                 }
+                buf.drain(..).collect()
             };
 
-            let mut fft_input: Vec<Complex<f32>> = samples
+            let n = new_samples.len();
+            if n >= block_size {
+                sliding_window.copy_from_slice(&new_samples[n - block_size..]);
+            } else {
+                sliding_window.rotate_left(n);
+                let start_idx = block_size - n;
+                sliding_window[start_idx..].copy_from_slice(&new_samples);
+            }
+
+            let mut fft_input: Vec<Complex<f32>> = sliding_window
                 .iter()
                 .zip(hanning.iter())
                 .map(|(&s, &w)| Complex::new(s * w, 0.0))

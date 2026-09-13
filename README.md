@@ -50,7 +50,10 @@ The compiled binary will be generated at `target/release/fanrgb.exe`.
 .\target\release\fanrgb.exe sync #00FF00
 .\target\release\fanrgb.exe sync off
 
-# Real-Time Pure Red Sub-Bass Visualizer (WASAPI Loopback)
+# Real-Time Sub-Bass Visualizer (WASAPI Loopback)
 .\target\release\fanrgb.exe bass
-.\target\release\fanrgb.exe bass --gpu
+.\target\release\fanrgb.exe bass blue --gpu
+.\target\release\fanrgb.exe bass "dark blue" --gpu --device "Speakers"
+.\target\release\fanrgb.exe bass blue --gpu --fmin 1 --fmax 25 --min 0 --decay 0.82
 ```
+

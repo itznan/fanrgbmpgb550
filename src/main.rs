@@ -29,6 +29,17 @@ fn parse_color(args: &[String]) -> Result<((u8, u8, u8), &[String]), String> {
         return Ok(((r, g, b), &args[1..]));
     }
 
+    if args.len() >= 2 {
+        let two_words_under = format!("{}_{}", args[0], args[1]);
+        if let Some(rgb) = get_color_preset(&two_words_under) {
+            return Ok((rgb, &args[2..]));
+        }
+        let two_words_concat = format!("{}{}", args[0], args[1]);
+        if let Some(rgb) = get_color_preset(&two_words_concat) {
+            return Ok((rgb, &args[2..]));
+        }
+    }
+
     if let Some(rgb) = get_color_preset(first) {
         return Ok((rgb, &args[1..]));
     }
@@ -72,17 +83,29 @@ Color values can be specified as:
 === Synchronized Control (Motherboard + GPU) ===
   fanrgb sync <preset|hex|r g b>   Synchronize motherboard and GPU to a color (e.g. fanrgb sync red)
   fanrgb sync off                  Power off both motherboard and GPU lighting
-  fanrgb bass [--gpu]              Real-time pure red sub-bass audio visualizer (WASAPI loopback)
+  fanrgb bass [color] [--gpu] [--min <0-255>] [--device <name>] [--fmin <hz>] [--fmax <hz>]
+                                   Real-time sub-bass audio visualizer (defaults to 1-25 Hz sub-bass window)
 "#
     );
 }
 
-fn run_cli_bass(sync_gpu: bool) {
+fn run_cli_bass(
+    sync_gpu: bool,
+    base_color: (u8, u8, u8),
+    min_brightness: u8,
+    device_name: Option<String>,
+    f_min: f32,
+    f_max: f32,
+    decay: f32,
+) {
     println!("=================================================================");
-    println!(" Pure Red Bass & Kick-Drum Visualizer (Terminal Mode - Rust)");
+    println!(" Sub-Bass & Kick-Drum Audio Visualizer (Terminal Mode - Rust)");
     println!("=================================================================");
-    println!("Audio Source: Default Playback Device (WASAPI Loopback)");
-    println!("Color: 100% Pure Red (Zero orange, zero amber)");
+    println!("Audio Source: WASAPI Loopback");
+    println!("Sub-Bass Frequency Window: {:.1} Hz - {:.1} Hz", f_min, f_max);
+    println!("Reactive Color: RGB({}, {}, {})", base_color.0, base_color.1, base_color.2);
+    println!("Idle Minimum Brightness: {}/255 (0 = 0 PWM off)", min_brightness);
+    println!("Decay Speed: {:.2}", decay);
     if sync_gpu {
         println!("Hardware Sync: MSI B550 Motherboard + Gigabyte GPU");
     } else {
@@ -100,16 +123,17 @@ fn run_cli_bass(sync_gpu: bool) {
     })
     .expect("Error setting Ctrl-C handler");
 
-    start_audio_capture(Arc::clone(&running), Arc::clone(&metrics), 28.0, 90.0);
+    start_audio_capture(Arc::clone(&running), Arc::clone(&metrics), f_min, f_max, device_name);
 
     let config = VisualizerConfig {
         mode: "hybrid".to_string(),
         sync_gpu,
-        sensitivity: 1.0,
-        threshold: 0.05,
-        gamma: 1.8,
-        decay: 0.82,
-        min_brightness: 0,
+        sensitivity: 1.25,
+        threshold: 0.07,
+        gamma: 2.0,
+        decay,
+        min_brightness,
+        base_color,
     };
 
     run_visualizer(running, metrics, config);
@@ -125,7 +149,52 @@ fn run_cli(args: &[String]) {
 
     if cmd == "bass" {
         let sync_gpu = args.iter().any(|a| a == "--gpu" || a == "-g");
-        run_cli_bass(sync_gpu);
+        let mut min_brightness: u8 = 0;
+        let mut device_name: Option<String> = None;
+        let mut f_min: f32 = 1.0;
+        let mut f_max: f32 = 25.0;
+        let mut decay: f32 = 0.82;
+        let mut filtered_args = Vec::new();
+        let mut i = 2;
+        while i < args.len() {
+            let arg = &args[i];
+            if arg == "--gpu" || arg == "-g" {
+                i += 1;
+            } else if (arg == "--min" || arg == "-m") && i + 1 < args.len() {
+                if let Ok(v) = args[i + 1].parse::<u8>() {
+                    min_brightness = v;
+                }
+                i += 2;
+            } else if (arg == "--device" || arg == "-d") && i + 1 < args.len() {
+                device_name = Some(args[i + 1].clone());
+                i += 2;
+            } else if (arg == "--fmin" || arg == "--min-freq") && i + 1 < args.len() {
+                if let Ok(v) = args[i + 1].parse::<f32>() {
+                    f_min = v;
+                }
+                i += 2;
+            } else if (arg == "--fmax" || arg == "--max-freq") && i + 1 < args.len() {
+                if let Ok(v) = args[i + 1].parse::<f32>() {
+                    f_max = v;
+                }
+                i += 2;
+            } else if (arg == "--decay") && i + 1 < args.len() {
+                if let Ok(v) = args[i + 1].parse::<f32>() {
+                    decay = v;
+                }
+                i += 2;
+            } else {
+                filtered_args.push(args[i].clone());
+                i += 1;
+            }
+        }
+
+        let base_color = if !filtered_args.is_empty() {
+            parse_color(&filtered_args).map(|(c, _)| c).unwrap_or((0, 0, 255))
+        } else {
+            (0, 0, 255)
+        };
+        run_cli_bass(sync_gpu, base_color, min_brightness, device_name, f_min, f_max, decay);
         return;
     }
 

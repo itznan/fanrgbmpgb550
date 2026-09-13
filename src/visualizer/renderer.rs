@@ -19,6 +19,7 @@ pub struct VisualizerConfig {
     pub gamma: f32,
     pub decay: f32,
     pub min_brightness: u8,
+    pub base_color: (u8, u8, u8),
 }
 
 impl Default for VisualizerConfig {
@@ -31,6 +32,7 @@ impl Default for VisualizerConfig {
             gamma: 1.8,
             decay: 0.82,
             min_brightness: 0,
+            base_color: (255, 0, 0),
         }
     }
 }
@@ -78,6 +80,8 @@ pub fn run_visualizer(
     let mut current_level = 0.0f32;
     let mut frame_count = 0u64;
     let mut last_sent_r = 256i32;
+    let mut last_sent_g = 256i32;
+    let mut last_sent_b = 256i32;
 
     let t_start = Instant::now();
 
@@ -133,23 +137,33 @@ pub fn run_visualizer(
 
         target_val = target_val.powf(config.gamma);
 
-        // Attack / Decay
+        // Instant sharp attack, rapid drop down
         if target_val > current_level {
-            current_level = current_level * 0.12 + target_val * 0.88;
+            current_level = target_val;
         } else {
             current_level *= config.decay;
+            if current_level < 0.015 {
+                current_level = 0.0;
+            }
         }
 
         let level_clamped = current_level.clamp(0.0, 1.0);
 
-        // Pure Red color: G=0, B=0
-        let min_r = config.min_brightness as f32;
-        let r = (min_r + (255.0 - min_r) * level_clamped) as u8;
-        let g = 0u8;
-        let b = 0u8;
+        // Strict 0 PWM when there is no bass and min_brightness is 0
+        let (r, g, b) = if level_clamped <= 0.0 && config.min_brightness == 0 {
+            (0, 0, 0)
+        } else {
+            let min_ratio = (config.min_brightness as f32) / 255.0;
+            let scale = min_ratio + (1.0 - min_ratio) * level_clamped;
+            (
+                ((config.base_color.0 as f32) * scale).clamp(0.0, 255.0) as u8,
+                ((config.base_color.1 as f32) * scale).clamp(0.0, 255.0) as u8,
+                ((config.base_color.2 as f32) * scale).clamp(0.0, 255.0) as u8,
+            )
+        };
 
         // Delta check: only dispatch USB packets when color changes or heartbeat (every 30 frames)
-        if r as i32 != last_sent_r || (frame_count % 30 == 0) {
+        if (r as i32 != last_sent_r || g as i32 != last_sent_g || b as i32 != last_sent_b) || (frame_count % 30 == 0) {
             controller.set_zone_data(&mut packet, "j_rgb_1", MODE_STATIC, r, g, b, 1, 10, 100);
             controller.set_zone_data(&mut packet, "j_rainbow_1", MODE_STATIC, r, g, b, 1, 10, 100);
             controller.set_zone_data(&mut packet, "j_rainbow_2", MODE_STATIC, r, g, b, 1, 10, 100);
@@ -161,9 +175,11 @@ pub fn run_visualizer(
 
             let _ = controller.stream_update(&mut packet, Duration::from_millis(12));
             if let Some(ref gpu_dev) = gpu {
-                gpu_dev.stream_color_fast(r, 0, 0);
+                gpu_dev.stream_color_fast(r, g, b);
             }
             last_sent_r = r as i32;
+            last_sent_g = g as i32;
+            last_sent_b = b as i32;
         }
 
         frame_count += 1;
@@ -175,10 +191,12 @@ pub fn run_visualizer(
             let filled = (bar_len as f32 * level_clamped) as usize;
             let bar = format!("{}{}", "#".repeat(filled), "-".repeat(bar_len - filled));
             print!(
-                "\r[{}] Bass: {:3}% | Pure Red: {:3}/255 | FPS: {:.1} ",
+                "\r[{}] Bass: {:3}% | Color: ({:3}, {:3}, {:3}) | FPS: {:.1} ",
                 bar,
                 (level_clamped * 100.0) as u32,
                 r,
+                g,
+                b,
                 fps
             );
             let _ = io::stdout().flush();
@@ -193,9 +211,19 @@ pub fn run_visualizer(
     }
 
     println!("\n\nStopping visualizer...");
+    let (br, bg, bb) = if config.min_brightness > 0 {
+        let scale = (config.min_brightness as f32) / 255.0;
+        (
+            ((config.base_color.0 as f32) * scale) as u8,
+            ((config.base_color.1 as f32) * scale) as u8,
+            ((config.base_color.2 as f32) * scale) as u8,
+        )
+    } else {
+        (0, 0, 0)
+    };
     if let Some(ref mut gpu_dev) = gpu {
-        gpu_dev.apply_color(config.min_brightness, 0, 0, 0);
+        gpu_dev.apply_color(br, bg, bb, 100);
     }
-    let _ = controller.apply_color_to_all(config.min_brightness, 0, 0, MODE_STATIC);
+    let _ = controller.apply_color_to_all(br, bg, bb, MODE_STATIC);
     println!("Done.");
 }
