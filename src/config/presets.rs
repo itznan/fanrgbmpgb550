@@ -16,6 +16,7 @@ pub fn get_color_preset(name: &str) -> Option<(u8, u8, u8)> {
         "white" => Some((255, 255, 255)),
         "orange" => Some((255, 120, 0)),
         "purple" => Some((160, 32, 240)),
+        "darkpurple" | "dark_purple" | "deeppurple" | "deep_purple" | "indigo" => Some((75, 0, 130)),
         "off" => Some((0, 0, 0)),
         _ => None,
     }
@@ -25,7 +26,8 @@ pub fn get_animation_mode(name: &str) -> Option<u8> {
     match name.to_lowercase().as_str() {
         "static" => Some(MODE_STATIC),
         "disable" | "off" => Some(MODE_DISABLE),
-        "rainbow_wave" => Some(MODE_RAINBOW_WAVE),
+        "rainbow" | "rainbow_wave" | "rainbowwave" => Some(MODE_RAINBOW_WAVE),
+        "rainbow_flashing" => Some(MODE_RAINBOW_FLASHING),
         "breathing" => Some(MODE_BREATHING),
         "meteor" => Some(MODE_METEOR),
         "flashing" => Some(MODE_FLASHING),

@@ -178,26 +178,41 @@ impl MSIMysticLightB550 {
 
     /// Applies an RGB color to JRGB1, JRAINBOW1, JRAINBOW2, and ONBOARD LEDs.
     pub fn apply_color_to_all(&mut self, r: u8, g: u8, b: u8, mode: u8) -> Result<(), String> {
+        self.apply_zone("all", mode, r, g, b, SPEED_MEDIUM, BRIGHTNESS_100)
+    }
+
+    pub fn apply_zone(
+        &mut self,
+        zone_name: &str,
+        mode: u8,
+        r: u8,
+        g: u8,
+        b: u8,
+        speed: u8,
+        brightness: u8,
+    ) -> Result<(), String> {
         let mut packet = self.read_packet()?;
 
-        // Update JRGB1 (12V 4-pin header)
-        set_zone_data(&mut packet, "j_rgb_1", mode, r, g, b, SPEED_MEDIUM, BRIGHTNESS_100, 100);
-
-        // Update JRAINBOW1 (5V 3-pin ARGB header)
-        set_zone_data(&mut packet, "j_rainbow_1", mode, r, g, b, SPEED_MEDIUM, BRIGHTNESS_100, 100);
-
-        // Update JRAINBOW2 (5V 3-pin ARGB header)
-        set_zone_data(&mut packet, "j_rainbow_2", mode, r, g, b, SPEED_MEDIUM, BRIGHTNESS_100, 100);
-
-        // Update Master ONBOARD
-        set_zone_data(&mut packet, "on_board_led", mode, r, g, b, SPEED_MEDIUM, BRIGHTNESS_100, 100);
-
-        // Update individual ONBOARD LEDs 1..6
-        for i in 1..=6 {
-            let zone_key = format!("on_board_led_{}", i);
-            set_zone_data(&mut packet, &zone_key, mode, r, g, b, SPEED_MEDIUM, BRIGHTNESS_100, 100);
+        if zone_name == "all" {
+            set_zone_data(&mut packet, "j_rgb_1", mode, r, g, b, speed, brightness, 100);
+            set_zone_data(&mut packet, "j_rainbow_1", mode, r, g, b, speed, brightness, 100);
+            set_zone_data(&mut packet, "j_rainbow_2", mode, r, g, b, speed, brightness, 100);
+            set_zone_data(&mut packet, "on_board_led", mode, r, g, b, speed, brightness, 100);
+            for i in 1..=6 {
+                let zone_key = format!("on_board_led_{}", i);
+                set_zone_data(&mut packet, &zone_key, mode, r, g, b, speed, brightness, 100);
+            }
+        } else if zone_name == "on_board_led" {
+            set_zone_data(&mut packet, "on_board_led", mode, r, g, b, speed, brightness, 100);
+            for i in 1..=6 {
+                let zone_key = format!("on_board_led_{}", i);
+                set_zone_data(&mut packet, &zone_key, mode, r, g, b, speed, brightness, 100);
+            }
+        } else {
+            set_zone_data(&mut packet, zone_name, mode, r, g, b, speed, brightness, 100);
         }
 
         self.update_hardware(&mut packet)
     }
 }
+
