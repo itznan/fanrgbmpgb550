@@ -299,6 +299,7 @@ The codebase is organized into small, decoupled, and single-responsibility modul
 ├── .github/workflows/
 │   └── build.yml             # GitHub Actions CI/CD (Windows build & automated release)
 ├── effects/                  # Bundled custom JSON effect presets & profiles
+│   ├── blue_purple_fade.json # Smooth cyclic fade between dark blue and dark purple
 │   ├── cyberpunk.json        # Smooth fade between neon cyan and purple
 │   ├── police_strobe.json    # High-speed alternating red/blue emergency strobe
 │   ├── amber_breath.json     # Slow organic amber breathing

@@ -259,6 +259,7 @@ Create, customize, and execute dynamic lighting animations and multi-zone static
 .\target\release\fanrgb.exe effect effects/cyberpunk.json
 
 # Shorthand: run by effect name directly from ./effects/
+.\target\release\fanrgb.exe effect blue_purple_fade
 .\target\release\fanrgb.exe effect cyberpunk
 .\target\release\fanrgb.exe effect police_strobe
 .\target\release\fanrgb.exe effect amber_breath
