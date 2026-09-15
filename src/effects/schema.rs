@@ -248,7 +248,11 @@ impl ZoneState {
         }
 
         if let Some(b) = kf.brightness {
-            let factor = (b as f32) / 100.0;
+            let factor = if b > 100 {
+                (b as f32) / 255.0
+            } else {
+                (b as f32) / 100.0
+            };
             state.j_rgb_1 = state.j_rgb_1.scale(factor);
             state.j_rainbow_1 = state.j_rainbow_1.scale(factor);
             state.j_rainbow_2 = state.j_rainbow_2.scale(factor);
