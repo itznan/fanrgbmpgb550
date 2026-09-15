@@ -547,7 +547,7 @@ The MSI motherboard controller stores settings in either EEPROM (flash memory) o
 1. **"Could not open MSI Motherboard"**:
    - Ensure MSI Center / Mystic Light / Dragon Center is closed and not locking the USB HID interface.
    - Run PowerShell or Command Prompt **As Administrator**.
-   - Check device manager for HID devices under Vendor ID `0x0DB0` and Product ID `0x550` or `0x7C56`.
+   - Check device manager for HID devices under Vendor ID `0x1462` (MSI) and Product ID `0x7C56`.
 
 2. **"Could not detect Gigabyte GPU RGB controller"**:
    - Ensure official NVIDIA drivers are installed and NVAPI is accessible.
