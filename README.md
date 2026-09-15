@@ -296,6 +296,8 @@ See [usage.md](usage.md) for full JSON schema specifications, supported zones (`
 The codebase is organized into small, decoupled, and single-responsibility modules:
 
 ```text
+├── .github/workflows/
+│   └── build.yml             # GitHub Actions CI/CD (Windows build & automated release)
 ├── effects/                  # Bundled custom JSON effect presets & profiles
 │   ├── cyberpunk.json        # Smooth fade between neon cyan and purple
 │   ├── police_strobe.json    # High-speed alternating red/blue emergency strobe

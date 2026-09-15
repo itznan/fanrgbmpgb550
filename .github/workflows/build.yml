@@ -1,0 +1,87 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release Tag (e.g. v0.1.0)'
+        required: false
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Stable Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Enable Cargo Dependency Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Optimized Release Binary
+        run: cargo build --release --verbose
+
+      - name: Verify Executable Execution
+        shell: pwsh
+        run: .\target\release\fanrgb.exe help
+
+      - name: Package Release Bundle (ZIP & Checksum)
+        shell: pwsh
+        run: |
+          $distDir = "fanrgb-dist"
+          New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+          
+          Copy-Item "target\release\fanrgb.exe" -Destination "$distDir\"
+          Copy-Item "README.md" -Destination "$distDir\"
+          Copy-Item "usage.md" -Destination "$distDir\"
+          Copy-Item -Recurse "effects" -Destination "$distDir\"
+          
+          Compress-Archive -Path "$distDir\*" -DestinationPath "fanrgb-windows-x86_64.zip" -Force
+          
+          $hash = (Get-FileHash -Algorithm SHA256 "fanrgb-windows-x86_64.zip").Hash
+          "$hash  fanrgb-windows-x86_64.zip" | Out-File -Encoding ascii "fanrgb-windows-x86_64.zip.sha256"
+          
+          Write-Host "Archive created: fanrgb-windows-x86_64.zip (SHA256: $hash)"
+
+      - name: Determine Release Tag
+        id: tag_info
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $tag = $env:GITHUB_REF_NAME
+          } elseif ($env:INPUT_TAG) {
+            $tag = $env:INPUT_TAG
+          } else {
+            $tag = "v0.1.0"
+          }
+          Write-Output "tag=$tag" >> $env:GITHUB_OUTPUT
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_info.outputs.tag }}
+          name: ${{ steps.tag_info.outputs.tag }} - Native Windows RGB Controller
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            target/release/fanrgb.exe
+            fanrgb-windows-x86_64.zip
+            fanrgb-windows-x86_64.zip.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
