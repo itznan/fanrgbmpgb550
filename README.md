@@ -1,15 +1,21 @@
-# MSI MPG B550 & Gigabyte GPU RGB Controller (Rust Native Edition)
+# MSI MPG B550 & Gigabyte GPU RGB Controller (Rust Native CLI - 2026 Edition)
 
-Ultra-fast, lightweight native Rust GUI & CLI lighting controller for:
+[![Developer](https://img.shields.io/badge/Developer-itznan-blue.svg)](https://github.com/itznan)
+[![GitHub](https://img.shields.io/badge/GitHub-github.com%2Fitznan-181717?logo=github)](https://github.com/itznan)
+[![Rust Edition](https://img.shields.io/badge/Rust%20Edition-2021-orange.svg)](Cargo.toml)
+[![Release Year](https://img.shields.io/badge/Release-2026-brightgreen.svg)](https://github.com/itznan/fanrgbmpgb550)
+
+Ultra-fast, lightweight native Rust CLI lighting controller for:
 1. **MSI MPG B550 GAMING PLUS (MS-7C56)** Motherboard (`USB HID Feature Report 0x52`)
 2. **Gigabyte GeForce RTX 3060 Ti GAMING OC** Graphics Card (`NVIDIA NVAPI I2C 0x32/0xAB Probe`)
+
+Developed by **itznan** ([github.com/itznan](https://github.com/itznan)) — 2026.
 
 ---
 
 ## Table of Contents
 - [Key Features](#key-features)
 - [Building from Source](#building-from-source)
-- [Graphical User Interface (GUI)](#graphical-user-interface-gui)
 - [Command-Line Usage (CLI)](#command-line-usage-cli)
   - [Hardware Status](#hardware-status)
   - [Color Formats & PowerShell Quoting](#color-formats--powershell-quoting)
@@ -17,20 +23,22 @@ Ultra-fast, lightweight native Rust GUI & CLI lighting controller for:
   - [GPU Control](#gpu-control)
   - [Synchronized Control (Mobo + GPU)](#synchronized-control-mobo--gpu)
   - [Real-Time Audio Sub-Bass Visualizer](#real-time-audio-sub-bass-visualizer)
+  - [Custom JSON Effects & Profiles](#custom-json-effects--profiles)
 - [Animation Modes Reference](#animation-modes-reference)
   - [Motherboard Modes](#motherboard-modes)
   - [GPU Modes](#gpu-modes)
 - [Color Presets Reference](#color-presets-reference)
+- [Project Architecture & Directory Structure](#project-architecture--directory-structure)
 - [Hardware Safety & Architecture](#hardware-safety--architecture)
+- [Developer & Credits](#developer--credits)
 
 ---
 
 ## Key Features
-* **Professional Single-Page GUI**: Native `egui`/`eframe` dashboard with full hardware controls, live preview, and quick swatches on one clean page.
-* **Minimal System Footprint**: Pure Rust (~18 MB RAM), 0% idle CPU overhead, zero Webview or Electron bloat.
+* **Minimal System Footprint**: Pure Rust CLI (< 5 MB binary, tiny memory usage), 0% idle CPU overhead.
 * **Deterministic Control**: Direct, low-level hardware control without background bloatware or unrequested transitions.
 * **Zero Flash Wear Guarantee**: Volatile RAM updates (`save_data = 0x00`) strictly protect motherboard EEPROM from wear.
-* **Real-Time WASAPI Loopback Sub-Bass Visualizer**: Integrated in GUI with animated live VU meter and terminal ASCII meter in CLI.
+* **Real-Time WASAPI Loopback Sub-Bass Visualizer**: High-resolution audio reactivity with terminal ASCII meter.
 * **Synchronized Control**: One command syncs motherboard, fans, and graphics card simultaneously.
 
 ---
@@ -46,29 +54,6 @@ Ultra-fast, lightweight native Rust GUI & CLI lighting controller for:
 cargo build --release
 ```
 The optimized executable will be created at `.\target\release\fanrgb.exe`.
-
----
-
-## Graphical User Interface (GUI)
-
-Launch the dashboard by running without arguments or passing `gui`:
-
-```powershell
-# Launch GUI
-.\target\release\fanrgb.exe
-
-# Or explicitly
-.\target\release\fanrgb.exe gui
-```
-
-> Double-clicking `fanrgb.exe` in Windows Explorer also opens the GUI automatically.
-
-### GUI Features
-* **Per-Zone Selection**: Target `All Zones`, `J_RAINBOW_1`, `J_RAINBOW_2` (ARGB headers), `J_RGB_1` (12V RGB), or `Onboard LEDs`.
-* **Live Interactive Color Picker**: Full HSV/RGB picker with instant preview.
-* **Quick Color Swatches**: One-click presets (Red, Green, Blue, Purple, Orange, Cyan, White, Blackout).
-* **Speed & Brightness Sliders**: Intuitive hardware speed (Slow, Normal, Fast) and brightness (0–100%).
-* **Integrated Sub-Bass Visualizer**: Real-time VU meter showing live audio reactivity.
 
 ---
 
@@ -220,6 +205,34 @@ Uses low-latency Windows WASAPI loopback capture with FFT sub-bass extraction to
 
 ---
 
+### Custom JSON Effects & Profiles
+
+Create and execute your own multi-step lighting animations and per-zone static setups using custom JSON files:
+
+```powershell
+# Play an animation effect (e.g. Cyberpunk Neon smooth fade)
+.\target\release\fanrgb.exe effect cyberpunk
+
+# High-speed alternating police strobe
+.\target\release\fanrgb.exe effect police_strobe
+
+# Multi-zone independent animation
+.\target\release\fanrgb.exe effect zone_split
+
+# Apply a custom static profile across all headers & GPU
+.\target\release\fanrgb.exe effect static_profile
+
+# List all available JSON effect files
+.\target\release\fanrgb.exe effect list
+
+# Generate a starter template ready for editing
+.\target\release\fanrgb.exe effect init cyberpunk my_custom_effect.json
+```
+
+See [usage.md](usage.md) for full JSON schema specifications, supported zones (`j_rainbow_1`, `j_rainbow_2`, `j_rgb_1`, `on_board_led`, `gpu`), transition types, and examples.
+
+---
+
 ## Animation Modes Reference
 
 ### Motherboard Modes
@@ -283,46 +296,44 @@ Uses low-latency Windows WASAPI loopback capture with FFT sub-bass extraction to
 The codebase is organized into small, decoupled, and single-responsibility modules:
 
 ```text
-src/
-├── main.rs                   # Lightweight entrypoint (routes to GUI or CLI)
-├── cli/                      # Command-line interface modules
-│   ├── mod.rs                # CLI module entrypoint
-│   ├── args.rs               # Color & argument parser (hex, presets, RGB)
-│   ├── commands.rs           # Subcommand handlers (status, mode, gpu, sync)
-│   ├── bass.rs               # Real-time sub-bass visualizer launcher
-│   └── help.rs               # Formatted CLI help and syntax reference
-├── gui/                      # Graphical user interface (egui / eframe)
-│   ├── mod.rs                # GUI entrypoint and native window configuration
-│   ├── app.rs                # eframe::App lifecycle and update loop
-│   ├── state.rs              # GuiApp state, hardware handles, audio device list
-│   ├── actions.rs            # Hardware operations (apply, sync, off, reconnect)
-│   ├── theme.rs              # Dark theme styling, visuals, and card containers
-│   ├── zone.rs               # MoboZone enum and label/key mappings
-│   └── panels/               # Modular UI component cards
-│       ├── mod.rs            # Panels module exports
-│       ├── header.rs         # Top bar, status pills, and global sync buttons
-│       ├── palette.rs        # Quick color swatch presets & master picker
-│       ├── mobo.rs           # Motherboard zones, animation modes, speed/brightness
-│       ├── gpu.rs            # GPU NVAPI status, mode selector, sliders
-│       ├── visualizer.rs     # WASAPI audio capture, live VU meter, frequency filters
-│       └── footer.rs         # Status feedback bar and engine footprint info
-├── controller/               # MSI Mystic Light Motherboard driver
-│   ├── mod.rs                # Controller exports
-│   ├── device.rs             # HID Feature Report 0x52 read/write & handshake
-│   └── zone.rs               # Zone byte offset packing & unpacking
-├── gpu/                      # Gigabyte RGB Fusion 2.0 via NVAPI driver
-│   ├── mod.rs                # GPU exports
-│   ├── fusion.rs             # I2C probing (0x32, 0x62, etc.), color & mode registers
-│   ├── nvapi.rs              # NVIDIA NVAPI 64-bit struct definitions
-│   └── constants.rs          # Mode codes, speeds, and register addresses
-├── visualizer/               # WASAPI Audio DSP engine
-│   ├── mod.rs                # Visualizer exports
-│   ├── audio.rs              # WASAPI loopback capture & FFT sub-bass extractor
-│   └── renderer.rs           # ASCII terminal meter & high-throughput HID streaming
-└── config/                   # Hardware constants & presets
-    ├── mod.rs                # Config exports
-    ├── hardware.rs           # USB VID/PID, zone offsets, report byte constants
-    └── presets.rs            # Named color RGB presets and animation mode mappings
+├── effects/                  # Bundled custom JSON effect presets & profiles
+│   ├── cyberpunk.json        # Smooth fade between neon cyan and purple
+│   ├── police_strobe.json    # High-speed alternating red/blue emergency strobe
+│   ├── amber_breath.json     # Slow organic amber breathing
+│   ├── zone_split.json       # Independent animated zones per header and GPU
+│   └── static_profile.json   # Multi-zone static color layout profile
+├── src/
+│   ├── main.rs               # Lightweight CLI entrypoint & argument dispatcher
+│   ├── cli/                  # Command-line interface modules
+│   │   ├── mod.rs            # CLI module entrypoint
+│   │   ├── args.rs           # Color & argument parser (hex, presets, RGB)
+│   │   ├── commands.rs       # Subcommand handlers (status, mode, gpu, sync, effect)
+│   │   ├── bass.rs           # Real-time sub-bass visualizer launcher
+│   │   └── help.rs           # Formatted CLI help and syntax reference
+│   ├── effects/              # Custom JSON effect engine
+│   │   ├── mod.rs            # Effects engine exports
+│   │   ├── schema.rs         # JSON deserializer, color parser, keyframe interpolation
+│   │   ├── player.rs         # High-frequency volatile streaming player
+│   │   └── templates.rs      # Starter template generator (cyberpunk, police, etc.)
+│   ├── controller/           # MSI Mystic Light Motherboard driver
+│   │   ├── mod.rs            # Controller exports
+│   │   ├── device.rs         # HID Feature Report 0x52 read/write & handshake
+│   │   └── zone.rs           # Zone byte offset packing & unpacking
+│   ├── gpu/                  # Gigabyte RGB Fusion 2.0 via NVAPI driver
+│   │   ├── mod.rs            # GPU exports
+│   │   ├── fusion.rs         # I2C probing (0x32, 0x62, etc.), color & mode registers
+│   │   ├── nvapi.rs          # NVIDIA NVAPI 64-bit struct definitions
+│   │   └── constants.rs      # Mode codes, speeds, and register addresses
+│   ├── visualizer/           # WASAPI Audio DSP engine
+│   │   ├── mod.rs            # Visualizer exports
+│   │   ├── audio.rs          # WASAPI loopback capture & FFT sub-bass extractor
+│   │   └── renderer.rs       # ASCII terminal meter & high-throughput HID streaming
+│   └── config/               # Hardware constants & presets
+│       ├── mod.rs            # Config exports
+│       ├── hardware.rs       # USB VID/PID, zone offsets, report byte constants
+│       └── presets.rs        # Named color RGB presets and animation mode mappings
+├── usage.md                  # Comprehensive usage and configuration guide
+└── Cargo.toml                # Package configuration (Rust Edition 2021, Release 2026)
 ```
 
 ---
@@ -332,4 +343,14 @@ src/
 * **Zero Flash Wear Policy**: Every HID feature report packet explicitly forces `packet[184] = 0x00` (`save_data = 0x00`). All settings reside strictly in the controller's volatile SRAM. No EEPROM/flash cycles are consumed, preventing motherboard firmware degradation.
 * **Handshake Compliance**: Emulates the official MSI Mystic Light two-packet handshake (previous state followed by target state) with safe timing delimiters.
 * **Safe GPU I2C Communications**: Communicates via official NVIDIA NVAPI `NvAPI_I2CWriteEx` / `NvAPI_I2CReadEx` interfaces with validated register bounds.
+
+---
+
+## Developer & Credits
+
+* **Author / Developer:** [itznan](https://github.com/itznan)
+* **GitHub Profile:** [https://github.com/itznan](https://github.com/itznan)
+* **Repository:** [https://github.com/itznan/fanrgbmpgb550](https://github.com/itznan/fanrgbmpgb550)
+* **Rust Language Edition:** `2021` | **Year / Release:** `2026`
+* **License:** MIT / Apache-2.0
 

@@ -1,0 +1,31 @@
+{
+  "name": "Dual Zone Wave",
+  "description": "Independent colors animated across motherboard headers and GPU",
+  "loop": true,
+  "fps": 30,
+  "sync_gpu": true,
+  "keyframes": [
+    {
+      "duration_ms": 1200,
+      "transition": "linear",
+      "zones": {
+        "j_rainbow_1": "cyan",
+        "j_rainbow_2": "purple",
+        "j_rgb_1": "blue",
+        "on_board_led": "magenta",
+        "gpu": "cyan"
+      }
+    },
+    {
+      "duration_ms": 1200,
+      "transition": "linear",
+      "zones": {
+        "j_rainbow_1": "purple",
+        "j_rainbow_2": "cyan",
+        "j_rgb_1": "magenta",
+        "on_board_led": "blue",
+        "gpu": "purple"
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Static Studio Profile",
+  "description": "Applies fixed custom colors across individual motherboard headers and GPU",
+  "sync_gpu": true,
+  "zones": {
+    "j_rainbow_1": "#50C8FF",
+    "j_rainbow_2": "#A020F0",
+    "j_rgb_1": "#0014B4",
+    "on_board_led": "#4B0082",
+    "gpu": "#50C8FF"
+  }
+}

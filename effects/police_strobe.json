@@ -1,0 +1,49 @@
+{
+  "name": "Police Strobe",
+  "description": "High-intensity alternating red and blue emergency strobe",
+  "loop": true,
+  "fps": 30,
+  "sync_gpu": true,
+  "keyframes": [
+    {
+      "duration_ms": 100,
+      "transition": "instant",
+      "color": "red"
+    },
+    {
+      "duration_ms": 50,
+      "transition": "instant",
+      "color": "off"
+    },
+    {
+      "duration_ms": 100,
+      "transition": "instant",
+      "color": "red"
+    },
+    {
+      "duration_ms": 150,
+      "transition": "instant",
+      "color": "off"
+    },
+    {
+      "duration_ms": 100,
+      "transition": "instant",
+      "color": "blue"
+    },
+    {
+      "duration_ms": 50,
+      "transition": "instant",
+      "color": "off"
+    },
+    {
+      "duration_ms": 100,
+      "transition": "instant",
+      "color": "blue"
+    },
+    {
+      "duration_ms": 150,
+      "transition": "instant",
+      "color": "off"
+    }
+  ]
+}

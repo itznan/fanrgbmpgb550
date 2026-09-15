@@ -1,7 +1,6 @@
-//! CLI command router and sub-command handlers.
-
 use crate::config::*;
 use crate::controller::*;
+use crate::effects::{get_template_json, load_effect_from_file, play_custom_effect};
 use crate::gpu::*;
 
 use super::args::parse_color;
@@ -13,6 +12,11 @@ pub fn run_cli(args: &[String]) {
 
     if cmd == "help" || cmd == "--help" || cmd == "-h" {
         print_help();
+        return;
+    }
+
+    if cmd == "effect" || cmd == "play" || cmd == "profile" {
+        handle_effect(&args[2..]);
         return;
     }
 
@@ -236,4 +240,80 @@ fn handle_bass(args: &[String]) {
         (0, 0, 255)
     };
     run_cli_bass(sync_gpu, base_color, min_brightness, device_name, f_min, f_max, decay);
+}
+
+fn handle_effect(args: &[String]) {
+    if args.is_empty() {
+        println!("Custom JSON Effect Usage:");
+        println!("  fanrgb effect <file.json>               Play / apply custom effect or profile");
+        println!("  fanrgb effect list                      List bundled / local effect files");
+        println!("  fanrgb effect init [template] [file]    Generate a starter JSON template");
+        println!("                                          Templates: cyberpunk, police, breath, zones, static");
+        return;
+    }
+
+    let sub = args[0].to_lowercase();
+
+    if sub == "list" {
+        println!("Available Custom JSON Effects (in ./effects/):");
+        if let Ok(entries) = std::fs::read_dir("effects") {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "json").unwrap_or(false) {
+                    if let Ok(effect) = load_effect_from_file(&path) {
+                        let name = effect.name.unwrap_or_else(|| path.file_stem().unwrap().to_string_lossy().to_string());
+                        let desc = effect.description.unwrap_or_default();
+                        println!("  • {:<20} - {} ({})", path.file_name().unwrap().to_string_lossy(), name, desc);
+                    } else {
+                        println!("  • {}", path.file_name().unwrap().to_string_lossy());
+                    }
+                }
+            }
+        } else {
+            println!("  (No ./effects/ directory found)");
+        }
+        return;
+    }
+
+    if sub == "init" || sub == "template" {
+        let template_type = if args.len() >= 2 { &args[1] } else { "cyberpunk" };
+        let target_filename = if args.len() >= 3 {
+            args[2].clone()
+        } else {
+            format!("{}.json", template_type)
+        };
+
+        if let Some(json_content) = get_template_json(template_type) {
+            match std::fs::write(&target_filename, json_content) {
+                Ok(_) => println!("[OK] Created custom effect template: {}", target_filename),
+                Err(e) => eprintln!("[FAIL] Could not write template file '{}': {}", target_filename, e),
+            }
+        } else {
+            eprintln!("[FAIL] Unknown template type '{}'. Choose from: cyberpunk, police, breath, zones, static", template_type);
+        }
+        return;
+    }
+
+    // Resolve file path (try exact, or ./effects/<name>, or with .json suffix)
+    let raw_path = &args[0];
+    let path = if std::path::Path::new(raw_path).exists() {
+        std::path::PathBuf::from(raw_path)
+    } else if std::path::Path::new(&format!("{}.json", raw_path)).exists() {
+        std::path::PathBuf::from(format!("{}.json", raw_path))
+    } else if std::path::Path::new(&format!("effects/{}", raw_path)).exists() {
+        std::path::PathBuf::from(format!("effects/{}", raw_path))
+    } else if std::path::Path::new(&format!("effects/{}.json", raw_path)).exists() {
+        std::path::PathBuf::from(format!("effects/{}.json", raw_path))
+    } else {
+        std::path::PathBuf::from(raw_path)
+    };
+
+    match load_effect_from_file(&path) {
+        Ok(effect) => {
+            if let Err(e) = play_custom_effect(&effect) {
+                eprintln!("[FAIL] Error playing effect: {}", e);
+            }
+        }
+        Err(e) => eprintln!("[FAIL] {}", e),
+    }
 }

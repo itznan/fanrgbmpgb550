@@ -1,0 +1,21 @@
+{
+  "name": "Amber Warm Breath",
+  "description": "Slow organic breathing from deep ember red to golden amber",
+  "loop": true,
+  "fps": 30,
+  "sync_gpu": true,
+  "keyframes": [
+    {
+      "duration_ms": 2500,
+      "transition": "linear",
+      "color": "#FF8C00",
+      "brightness": 100
+    },
+    {
+      "duration_ms": 1500,
+      "transition": "linear",
+      "color": "#8B0000",
+      "brightness": 20
+    }
+  ]
+}

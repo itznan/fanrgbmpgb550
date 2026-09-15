@@ -1,0 +1,28 @@
+{
+  "name": "Cyberpunk Neon",
+  "description": "Smooth fade between vibrant neon cyan and hot magenta/purple",
+  "author": "FanRGB",
+  "loop": true,
+  "fps": 30,
+  "sync_gpu": true,
+  "keyframes": [
+    {
+      "duration_ms": 1500,
+      "transition": "linear",
+      "color": "#00FFFF",
+      "brightness": 100
+    },
+    {
+      "duration_ms": 1500,
+      "transition": "linear",
+      "color": "#FF007F",
+      "brightness": 100
+    },
+    {
+      "duration_ms": 1500,
+      "transition": "linear",
+      "color": "#A020F0",
+      "brightness": 100
+    }
+  ]
+}

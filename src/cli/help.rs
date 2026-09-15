@@ -3,7 +3,8 @@
 pub fn print_help() {
     println!(
         r##"
-MSI Motherboard & Gigabyte GPU RGB Controller (CLI Edition)
+MSI Motherboard & Gigabyte GPU RGB Controller (2026 CLI Edition)
+Developer: itznan (https://github.com/itznan)
 
 Usage:
   fanrgb <command> [arguments]
@@ -32,9 +33,11 @@ Color values can be specified as:
   fanrgb bass [color] [--gpu] [--min <0-255>] [--device <name>] [--fmin <hz>] [--fmax <hz>]
                                    Real-time sub-bass audio visualizer (WASAPI loopback)
 
-=== Graphical User Interface (GUI) ===
-  fanrgb                           Launch the professional one-page hardware control GUI
-  fanrgb gui                       Launch GUI directly
+=== Custom JSON Effects & Profiles ===
+  fanrgb effect <file.json>        Play / execute a custom JSON effect or profile
+  fanrgb effect list               List all available JSON effects in ./effects/
+  fanrgb effect init [template] [file]
+                                   Generate starter JSON template (cyberpunk, police, breath, zones, static)
 "##
     );
 }
