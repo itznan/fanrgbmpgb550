@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["itznan <https://github.com/itznan>"]
 repository = "https://github.com/itznan/fanrgbmpgb550"
+license = "MIT"
 
 [dependencies]
 hidapi = "2.6"
