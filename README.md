@@ -46,14 +46,31 @@ Developed by **itznan** ([github.com/itznan](https://github.com/itznan)) — 202
 ## Building from Source
 
 ### Prerequisites
+
+#### Windows
 * Rust toolchain (1.70+ recommended): `rustup default stable-x86_64-pc-windows-msvc`
 * C++ Build Tools (MSVC)
 
+#### Linux
+* Rust toolchain (1.70+ recommended): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+* Development packages:
+  * Debian / Ubuntu: `sudo apt install pkg-config libudev-dev libasound2-dev`
+  * Fedora / RHEL: `sudo dnf install pkgconf-pkg-config systemd-devel alsa-lib-devel`
+  * Arch Linux: `sudo pacman -S pkgconf systemd alsa-lib`
+
 ### Build Command
-```powershell
+```bash
 cargo build --release
 ```
-The optimized executable will be created at `.\target\release\fanrgb.exe`.
+* **Windows executable**: `.\target\release\fanrgb.exe`
+* **Linux binary**: `./target/release/fanrgb`
+
+### Linux Setup & Permissions (udev rule)
+To access the MSI Motherboard USB HID interface without requiring root/sudo privileges on Linux, install the provided udev rule:
+```bash
+sudo cp udev/99-msi-rgb.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
 
 ---
 

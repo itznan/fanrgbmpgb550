@@ -26,19 +26,29 @@
 
 ### Building the Binary
 From the repository root directory:
-```powershell
+```bash
 cargo build --release
 ```
 The compiled executable will be located at:
-```text
-.\target\release\fanrgb.exe
+* **Windows**: `.\target\release\fanrgb.exe`
+* **Linux**: `./target/release/fanrgb`
+
+### Linux Setup & Permissions (udev Rule)
+To allow non-root users to control the MSI Motherboard USB HID interface on Linux:
+```bash
+sudo cp udev/99-msi-rgb.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 ### Optional: Add to PATH or Create an Alias
 To invoke `fanrgb` directly from any terminal:
 ```powershell
-# In your PowerShell profile ($PROFILE):
+# In your PowerShell profile ($PROFILE) on Windows:
 Set-Alias fanrgb "E:\NAN\Github\fanrgbmpgb550\target\release\fanrgb.exe"
+```
+```bash
+# In your ~/.bashrc or ~/.zshrc on Linux:
+alias fanrgb="/path/to/fanrgbmpgb550/target/release/fanrgb"
 ```
 
 ### Quick Commands Cheat Sheet
