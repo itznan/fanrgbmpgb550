@@ -7,11 +7,19 @@ repository = "https://github.com/itznan/fanrgbmpgb550"
 license = "MIT"
 
 [dependencies]
-hidapi = "2.6"
 cpal = "0.15"
 rustfft = "6.2"
-libloading = "0.8"
 ctrlc = "3.4"
 num-complex = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+hidapi = { version = "2.6", default-features = false, features = ["linux-native"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+hidapi = "2.6"
+
+[target.'cfg(windows)'.dependencies]
+libloading = "0.8"
+
