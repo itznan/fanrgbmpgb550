@@ -1,18 +1,28 @@
 //! Gigabyte GPU RGB Fusion 2.0 Controller via NVIDIA NVAPI.
 #![allow(dead_code)]
 
-use std::ffi::{c_char, c_void, CStr};
+#[cfg(target_os = "windows")]
+use std::ffi::{c_char, CStr};
+use std::ffi::c_void;
 use std::ptr;
+#[cfg(target_os = "windows")]
 use libloading::Library;
 
 use crate::gpu::constants::*;
+#[cfg(target_os = "windows")]
 use crate::gpu::nvapi::NvI2cInfoV3;
 
+#[cfg(target_os = "windows")]
 type QueryInterfaceFn = unsafe extern "C" fn(u32) -> *mut c_void;
+#[cfg(target_os = "windows")]
 type NvInitFn = unsafe extern "C" fn() -> i32;
+#[cfg(target_os = "windows")]
 type NvEnumGpusFn = unsafe extern "C" fn(*mut [*mut c_void; 64], *mut i32) -> i32;
+#[cfg(target_os = "windows")]
 type NvGetFullNameFn = unsafe extern "C" fn(*mut c_void, *mut c_char) -> i32;
+#[cfg(target_os = "windows")]
 type NvI2cWriteExFn = unsafe extern "C" fn(*mut c_void, *mut NvI2cInfoV3, *mut u32) -> i32;
+#[cfg(target_os = "windows")]
 type NvI2cReadExFn = unsafe extern "C" fn(*mut c_void, *mut NvI2cInfoV3, *mut u32) -> i32;
 
 pub struct GigabyteGPURGB {
@@ -20,8 +30,11 @@ pub struct GigabyteGPURGB {
     pub gpu_name: String,
     target_address: Option<u8>,
     gpu_handle: *mut c_void,
+    #[cfg(target_os = "windows")]
     i2c_write_fn: Option<NvI2cWriteExFn>,
+    #[cfg(target_os = "windows")]
     i2c_read_fn: Option<NvI2cReadExFn>,
+    #[cfg(target_os = "windows")]
     _lib: Option<Library>,
     initialized: bool,
 }
@@ -38,13 +51,17 @@ impl GigabyteGPURGB {
             gpu_name: String::new(),
             target_address,
             gpu_handle: ptr::null_mut(),
+            #[cfg(target_os = "windows")]
             i2c_write_fn: None,
+            #[cfg(target_os = "windows")]
             i2c_read_fn: None,
+            #[cfg(target_os = "windows")]
             _lib: None,
             initialized: false,
         }
     }
 
+    #[cfg(target_os = "windows")]
     fn init_nvapi(&mut self) -> Result<(), String> {
         if self.initialized {
             return Ok(());
@@ -112,6 +129,12 @@ impl GigabyteGPURGB {
         Ok(())
     }
 
+    #[cfg(not(target_os = "windows"))]
+    fn init_nvapi(&mut self) -> Result<(), String> {
+        Err("NVIDIA NVAPI GPU RGB is currently only supported on Windows".to_string())
+    }
+
+    #[cfg(target_os = "windows")]
     fn i2c_write(&self, address: u8, data: &[u8]) -> bool {
         if !self.initialized || self.i2c_write_fn.is_none() {
             return false;
@@ -130,6 +153,13 @@ impl GigabyteGPURGB {
         res == 0
     }
 
+    #[cfg(not(target_os = "windows"))]
+    #[allow(unused_variables)]
+    fn i2c_write(&self, address: u8, data: &[u8]) -> bool {
+        false
+    }
+
+    #[cfg(target_os = "windows")]
     fn i2c_read(&self, address: u8, length: usize) -> Option<Vec<u8>> {
         if !self.initialized || self.i2c_read_fn.is_none() {
             return None;
@@ -150,6 +180,12 @@ impl GigabyteGPURGB {
         } else {
             None
         }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[allow(unused_variables)]
+    fn i2c_read(&self, address: u8, length: usize) -> Option<Vec<u8>> {
+        None
     }
 
     /// Safely scans candidate I2C addresses and validates the 0xAB signature.

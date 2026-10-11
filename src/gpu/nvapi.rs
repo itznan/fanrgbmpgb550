@@ -1,4 +1,5 @@
 //! NVIDIA NVAPI I2C struct definitions.
+#![allow(dead_code)]
 
 use std::mem::size_of;
 
