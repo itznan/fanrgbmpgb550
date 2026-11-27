@@ -54,6 +54,7 @@ pub struct GigabyteGPURGB {
     unload_fn: Option<NvUnloadFn>,
     #[cfg(target_os = "windows")]
     _lib: Option<Library>,
+    #[cfg(target_os = "windows")]
     initialized: bool,
 }
 
@@ -94,6 +95,7 @@ impl GigabyteGPURGB {
             unload_fn: None,
             #[cfg(target_os = "windows")]
             _lib: None,
+            #[cfg(target_os = "windows")]
             initialized: false,
         }
     }
