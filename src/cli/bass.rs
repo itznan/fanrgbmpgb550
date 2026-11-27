@@ -13,14 +13,23 @@ pub fn run_cli_bass(
     f_min: f32,
     f_max: f32,
     decay: f32,
-) {
+) -> Result<(), String> {
     println!("=================================================================");
     println!(" Sub-Bass & Kick-Drum Audio Visualizer (Terminal Mode - Rust)");
     println!("=================================================================");
     println!("Audio Source: WASAPI Loopback");
-    println!("Sub-Bass Frequency Window: {:.1} Hz - {:.1} Hz", f_min, f_max);
-    println!("Reactive Color: RGB({}, {}, {})", base_color.0, base_color.1, base_color.2);
-    println!("Idle Minimum Brightness: {}/255 (0 = 0 PWM off)", min_brightness);
+    println!(
+        "Sub-Bass Frequency Window: {:.1} Hz - {:.1} Hz",
+        f_min, f_max
+    );
+    println!(
+        "Reactive Color: RGB({}, {}, {})",
+        base_color.0, base_color.1, base_color.2
+    );
+    println!(
+        "Idle Minimum Brightness: {}/255 (0 = 0 PWM off)",
+        min_brightness
+    );
     println!("Decay Speed: {:.2}", decay);
     if sync_gpu {
         println!("Hardware Sync: MSI B550 Motherboard + Gigabyte GPU");
@@ -37,9 +46,15 @@ pub fn run_cli_bass(
     ctrlc::set_handler(move || {
         r_clone.store(false, Ordering::SeqCst);
     })
-    .expect("Error setting Ctrl-C handler");
+    .map_err(|e| format!("Error setting Ctrl-C handler: {}", e))?;
 
-    start_audio_capture(Arc::clone(&running), Arc::clone(&metrics), f_min, f_max, device_name);
+    start_audio_capture(
+        Arc::clone(&running),
+        Arc::clone(&metrics),
+        f_min,
+        f_max,
+        device_name,
+    );
 
     let config = VisualizerConfig {
         mode: "hybrid".to_string(),
@@ -52,5 +67,5 @@ pub fn run_cli_bass(
         base_color,
     };
 
-    run_visualizer(running, metrics, config);
+    run_visualizer(running, metrics, config)
 }

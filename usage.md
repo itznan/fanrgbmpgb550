@@ -44,7 +44,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 To invoke `fanrgb` directly from any terminal:
 ```powershell
 # In your PowerShell profile ($PROFILE) on Windows:
-Set-Alias fanrgb "E:\NAN\Github\fanrgbmpgb550\target\release\fanrgb.exe"
+Set-Alias fanrgb "C:\path\to\fanrgbmpgb550\target\release\fanrgb.exe"
 ```
 ```bash
 # In your ~/.bashrc or ~/.zshrc on Linux:
@@ -77,7 +77,7 @@ alias fanrgb="/path/to/fanrgbmpgb550/target/release/fanrgb"
 
 | Format | Example | Syntax Notes |
 | :--- | :--- | :--- |
-| **Preset Name** | `purple`, `cyan`, `darkblue` | Case-insensitive. See [Color Presets](#7-color-presets-reference). |
+| **Preset Name** | `purple`, `cyan`, `darkblue` | Case-insensitive. See [Color Presets](#8-color-presets-reference). |
 | **Hex Code (Quoted)** | `"#A020F0"`, `'#00FFCC'` | **Mandatory quotes** in PowerShell (otherwise `#` starts a comment). |
 | **Hex Code (Bare)** | `A020F0`, `00FFCC` | Safe to omit `#` without quoting. |
 | **RGB Integers** | `160 32 240`, `0 255 128` | Three space-separated integers between `0` and `255`. |
@@ -216,7 +216,7 @@ The `sync` command targets both the MSI motherboard headers and the Gigabyte gra
 
 ## 6. Real-Time Audio Visualizer (`fanrgb bass`)
 
-Captures Windows system audio via low-latency WASAPI loopback, runs high-speed FFT frequency analysis targeting sub-bass and kick-drum frequencies (default: 1.0 Hz – 25.0 Hz), and streams brightness updates to your hardware in real time with an ASCII VU meter.
+Captures Windows system audio via low-latency WASAPI loopback *(Windows only)*, runs high-speed FFT frequency analysis targeting sub-bass and kick-drum frequencies (default: 1.0 Hz – 25.0 Hz), and streams brightness updates to your hardware in real time with an ASCII VU meter.
 
 ```powershell
 .\target\release\fanrgb.exe bass [color] [options]
@@ -317,7 +317,7 @@ Create, customize, and execute dynamic lighting animations and multi-zone static
 | `transition` | String | `"linear"` | `"linear"` (smooth color fade) or `"instant"` / `"step"` / `"hold"` (jump and hold) |
 | `color` | Color | Optional | Global color applied across all zones |
 | `zones` | Object | Optional | Per-zone color map (overrides global `color` for specific headers) |
-| `brightness` | Integer | `100` | Brightness percentage scale (0 to 100) |
+| `brightness` | Integer | `100` | Brightness scale (`0` to `100` %, or `101` to `255` raw 8-bit scale) |
 
 ---
 
@@ -513,6 +513,13 @@ The following names are built directly into `fanrgb`:
 
 ## 10. Automation, Startup & Scripting Recipes
 
+### One-Click Rainbow Mode Batch Script
+Run everything across motherboard headers and GPU in rainbow mode:
+```cmd
+.\scripts\rainbow.bat
+```
+*(Optionally pass `wave` for traveling GPU rainbow wave: `.\scripts\rainbow.bat wave`, or `--pause` to keep the terminal open).*
+
 ### Run at Windows Login (Task Scheduler)
 Create a scheduled task to automatically apply your preferred profile on user login without keeping any background apps running:
 
@@ -520,7 +527,7 @@ Create a scheduled task to automatically apply your preferred profile on user lo
 2. Click **Create Basic Task...**
 3. Set Trigger to **When I log on**.
 4. Set Action to **Start a program**:
-   - **Program/script:** `E:\NAN\Github\fanrgbmpgb550\target\release\fanrgb.exe`
+   - **Program/script:** `C:\path\to\fanrgbmpgb550\target\release\fanrgb.exe`
    - **Add arguments:** `sync purple` *(or your preferred color or `effect static_profile`)*
 5. Check **Run with highest privileges** if required by your GPU NVAPI configuration.
 
@@ -531,7 +538,7 @@ param (
     [string]$Time = "day"
 )
 
-$fanrgb = "E:\NAN\Github\fanrgbmpgb550\target\release\fanrgb.exe"
+$fanrgb = "C:\path\to\fanrgbmpgb550\target\release\fanrgb.exe"
 
 switch ($Time.ToLower()) {
     "day"        { & $fanrgb sync cyan }

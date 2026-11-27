@@ -1,9 +1,9 @@
 //! NVIDIA NVAPI I2C struct definitions.
-#![allow(dead_code)]
 
 use std::mem::size_of;
 
 #[repr(C)]
+#[allow(dead_code)]
 pub struct NvI2cInfoV3 {
     pub version: u32,
     pub display_mask: u32,

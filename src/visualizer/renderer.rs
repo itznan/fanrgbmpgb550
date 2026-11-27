@@ -6,9 +6,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::config::{MODE_STATIC, SAVE_OFFSET};
+use crate::config::{BRIGHTNESS_100, MODE_DISABLE, MODE_STATIC, SAVE_OFFSET, SPEED_MEDIUM};
+use crate::controller::zone::set_all_zones;
 use crate::controller::MSIMysticLightB550;
-use crate::gpu::GigabyteGPURGB;
+use crate::gpu::{GigabyteGPURGB, GPU_BRIGHTNESS_MAX};
 use crate::visualizer::audio::AudioMetrics;
 
 pub struct VisualizerConfig {
@@ -41,19 +42,18 @@ pub fn run_visualizer(
     running: Arc<AtomicBool>,
     metrics: Arc<Mutex<AudioMetrics>>,
     config: VisualizerConfig,
-) {
+) -> Result<(), String> {
     let mut controller = match MSIMysticLightB550::open() {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[Visualizer Error]: Could not open motherboard: {}", e);
             running.store(false, Ordering::SeqCst);
-            return;
+            return Err(format!("Could not open motherboard: {}", e));
         }
     };
 
     let mut gpu: Option<GigabyteGPURGB> = None;
     if config.sync_gpu {
-        let mut gpu_dev = GigabyteGPURGB::new(None);
+        let mut gpu_dev = GigabyteGPURGB::new();
         if gpu_dev.probe_and_connect() {
             println!("[OK] GPU Visualizer sync enabled: {}", gpu_dev.gpu_name);
             gpu = Some(gpu_dev);
@@ -65,9 +65,8 @@ pub fn run_visualizer(
     let mut packet = match controller.read_packet() {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("[Visualizer Error]: Failed to read initial packet: {}", e);
             running.store(false, Ordering::SeqCst);
-            return;
+            return Err(format!("Failed to read initial packet: {}", e));
         }
     };
     packet[SAVE_OFFSET] = 0x00;
@@ -79,9 +78,8 @@ pub fn run_visualizer(
 
     let mut current_level = 0.0f32;
     let mut frame_count = 0u64;
-    let mut last_sent_r = 256i32;
-    let mut last_sent_g = 256i32;
-    let mut last_sent_b = 256i32;
+    let mut last_sent: Option<(u8, u8, u8)> = None;
+    let mut stream_err: Option<String> = None;
 
     let t_start = Instant::now();
 
@@ -89,7 +87,7 @@ pub fn run_visualizer(
         let t_frame = Instant::now();
 
         let (raw_bass, raw_flux) = {
-            let m = metrics.lock().unwrap();
+            let m = metrics.lock().unwrap_or_else(|e| e.into_inner());
             (m.bass * config.sensitivity, m.flux * config.sensitivity)
         };
 
@@ -119,8 +117,10 @@ pub fn run_visualizer(
         }
 
         // Normalized metrics
-        let bass_norm = ((raw_bass - floor_bass) / (peak_bass - floor_bass).max(3.0)).clamp(0.0, 1.0);
-        let flux_norm = ((raw_flux - floor_flux) / (peak_flux - floor_flux).max(2.0)).clamp(0.0, 1.0);
+        let bass_norm =
+            ((raw_bass - floor_bass) / (peak_bass - floor_bass).max(3.0)).clamp(0.0, 1.0);
+        let flux_norm =
+            ((raw_flux - floor_flux) / (peak_flux - floor_flux).max(2.0)).clamp(0.0, 1.0);
 
         let mut target_val = match config.mode.as_str() {
             "kick" => flux_norm,
@@ -132,7 +132,8 @@ pub fn run_visualizer(
         if target_val < config.threshold {
             target_val = 0.0;
         } else {
-            target_val = (target_val - config.threshold) / (1.0 - config.threshold);
+            target_val =
+                ((target_val - config.threshold) / (1.0 - config.threshold)).clamp(0.0, 1.0);
         }
 
         target_val = target_val.powf(config.gamma);
@@ -163,32 +164,36 @@ pub fn run_visualizer(
         };
 
         // Delta check: only dispatch USB packets when color changes or heartbeat (every 30 frames)
-        if (r as i32 != last_sent_r || g as i32 != last_sent_g || b as i32 != last_sent_b) || (frame_count % 30 == 0) {
-            controller.set_zone_data(&mut packet, "j_rgb_1", MODE_STATIC, r, g, b, 1, 10, 100);
-            controller.set_zone_data(&mut packet, "j_rainbow_1", MODE_STATIC, r, g, b, 1, 10, 100);
-            controller.set_zone_data(&mut packet, "j_rainbow_2", MODE_STATIC, r, g, b, 1, 10, 100);
-            controller.set_zone_data(&mut packet, "on_board_led", MODE_STATIC, r, g, b, 1, 10, 100);
-            for i in 1..=6 {
-                let zone_key = format!("on_board_led_{}", i);
-                controller.set_zone_data(&mut packet, &zone_key, MODE_STATIC, r, g, b, 1, 10, 100);
+        if last_sent != Some((r, g, b)) || frame_count.is_multiple_of(30) {
+            set_all_zones(
+                &mut packet,
+                MODE_STATIC,
+                (r, g, b),
+                SPEED_MEDIUM,
+                BRIGHTNESS_100,
+            );
+            if let Err(e) = controller.stream_update(&mut packet, Duration::from_millis(12)) {
+                running.store(false, Ordering::SeqCst);
+                stream_err = Some(e);
+                break;
             }
-
-            let _ = controller.stream_update(&mut packet, Duration::from_millis(12));
             if let Some(ref gpu_dev) = gpu {
                 gpu_dev.stream_color_fast(r, g, b);
             }
-            last_sent_r = r as i32;
-            last_sent_g = g as i32;
-            last_sent_b = b as i32;
+            last_sent = Some((r, g, b));
         }
 
         frame_count += 1;
-        if frame_count % 3 == 0 {
+        if frame_count.is_multiple_of(3) {
             let elapsed = t_start.elapsed().as_secs_f32();
-            let fps = if elapsed > 0.0 { frame_count as f32 / elapsed } else { 0.0 };
+            let fps = if elapsed > 0.0 {
+                frame_count as f32 / elapsed
+            } else {
+                0.0
+            };
 
             let bar_len = 24;
-            let filled = (bar_len as f32 * level_clamped) as usize;
+            let filled = ((bar_len as f32 * level_clamped) as usize).min(bar_len);
             let bar = format!("{}{}", "#".repeat(filled), "-".repeat(bar_len - filled));
             print!(
                 "\r[{}] Bass: {:3}% | Color: ({:3}, {:3}, {:3}) | FPS: {:.1} ",
@@ -211,19 +216,24 @@ pub fn run_visualizer(
     }
 
     println!("\n\nStopping visualizer...");
-    let (br, bg, bb) = if config.min_brightness > 0 {
+    if config.min_brightness > 0 {
         let scale = (config.min_brightness as f32) / 255.0;
-        (
-            ((config.base_color.0 as f32) * scale) as u8,
-            ((config.base_color.1 as f32) * scale) as u8,
-            ((config.base_color.2 as f32) * scale) as u8,
-        )
+        let br = ((config.base_color.0 as f32) * scale) as u8;
+        let bg = ((config.base_color.1 as f32) * scale) as u8;
+        let bb = ((config.base_color.2 as f32) * scale) as u8;
+        if let Some(ref mut gpu_dev) = gpu {
+            gpu_dev.apply_color(br, bg, bb, GPU_BRIGHTNESS_MAX);
+        }
+        let _ = controller.apply_color_to_all(br, bg, bb, MODE_STATIC);
     } else {
-        (0, 0, 0)
-    };
-    if let Some(ref mut gpu_dev) = gpu {
-        gpu_dev.apply_color(br, bg, bb, 100);
+        if let Some(ref mut gpu_dev) = gpu {
+            gpu_dev.turn_off();
+        }
+        let _ = controller.apply_color_to_all(0, 0, 0, MODE_DISABLE);
     }
-    let _ = controller.apply_color_to_all(br, bg, bb, MODE_STATIC);
+    if let Some(e) = stream_err {
+        return Err(e);
+    }
     println!("Done.");
+    Ok(())
 }

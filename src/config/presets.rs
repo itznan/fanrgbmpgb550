@@ -16,7 +16,9 @@ pub fn get_color_preset(name: &str) -> Option<(u8, u8, u8)> {
         "white" => Some((255, 255, 255)),
         "orange" => Some((255, 120, 0)),
         "purple" => Some((160, 32, 240)),
-        "darkpurple" | "dark_purple" | "deeppurple" | "deep_purple" | "indigo" => Some((75, 0, 130)),
+        "darkpurple" | "dark_purple" | "deeppurple" | "deep_purple" | "indigo" => {
+            Some((75, 0, 130))
+        }
         "off" => Some((0, 0, 0)),
         _ => None,
     }

@@ -4,16 +4,29 @@
 //! SAFETY RULES:
 //! - Never write save_data = 0x01 (always 0x00 for RAM-only volatile updates).
 //! - Feature report size must be exactly 185 bytes (Report ID 0x52 + 184 bytes payload).
-#![allow(dead_code)]
 
+use hidapi::{HidApi, HidDevice};
 use std::thread;
 use std::time::Duration;
-use hidapi::{HidApi, HidDevice};
 
-use crate::config::{
-    BRIGHTNESS_100, MSI_USB_PID, MSI_USB_VID, SAVE_OFFSET, SPEED_MEDIUM,
-};
-use crate::controller::zone::{get_zone_info, set_zone_data, ZoneInfo};
+use crate::config::{BRIGHTNESS_100, MSI_USB_PID, MSI_USB_VID, SAVE_OFFSET, SPEED_MEDIUM};
+use crate::controller::zone::set_all_zones;
+
+pub trait MoboController {
+    fn read_packet(&self) -> Result<[u8; 185], String>;
+    fn update_hardware(&self, target_packet: &mut [u8; 185]) -> Result<(), String>;
+    fn stream_update(
+        &mut self,
+        target_packet: &mut [u8; 185],
+        pause_duration: Duration,
+    ) -> Result<(), String>;
+
+    fn apply_color_to_all(&mut self, r: u8, g: u8, b: u8, mode: u8) -> Result<(), String> {
+        let mut packet = self.read_packet()?;
+        set_all_zones(&mut packet, mode, (r, g, b), SPEED_MEDIUM, BRIGHTNESS_100);
+        self.update_hardware(&mut packet)
+    }
+}
 
 pub struct MSIMysticLightB550 {
     device: HidDevice,
@@ -23,60 +36,17 @@ pub struct MSIMysticLightB550 {
 impl MSIMysticLightB550 {
     pub fn open() -> Result<Self, String> {
         let api = HidApi::new().map_err(|e| format!("Failed to initialize HID API: {}", e))?;
-        let device = api
-            .open(MSI_USB_VID, MSI_USB_PID)
-            .map_err(|e| format!("Could not open MSI Motherboard (VID 0x{:04X}, PID 0x{:04X}): {}", MSI_USB_VID, MSI_USB_PID, e))?;
+        let device = api.open(MSI_USB_VID, MSI_USB_PID).map_err(|e| {
+            format!(
+                "Could not open MSI Motherboard (VID 0x{:04X}, PID 0x{:04X}): {}",
+                MSI_USB_VID, MSI_USB_PID, e
+            )
+        })?;
 
         Ok(Self {
             device,
             stream_cached_packet: None,
         })
-    }
-
-    pub fn read_firmware_versions(&self) -> Result<(String, String), String> {
-        // APROM (0xB0)
-        let mut req = [0u8; 64];
-        req[0] = 0x01;
-        req[1] = 0xB0;
-        for i in 2..64 {
-            req[i] = 0xCC;
-        }
-
-        self.device
-            .write(&req)
-            .map_err(|e| format!("Write APROM request failed: {}", e))?;
-
-        let mut resp_ap = [0u8; 64];
-        let n1 = self
-            .device
-            .read_timeout(&mut resp_ap, 500)
-            .map_err(|e| format!("Read APROM failed: {}", e))?;
-
-        let ap_ver = if n1 >= 3 {
-            format!("{}.{}", resp_ap[2] >> 4, resp_ap[2] & 0x0F)
-        } else {
-            "Unknown".to_string()
-        };
-
-        // LDROM (0xB6)
-        req[1] = 0xB6;
-        self.device
-            .write(&req)
-            .map_err(|e| format!("Write LDROM request failed: {}", e))?;
-
-        let mut resp_ld = [0u8; 64];
-        let n2 = self
-            .device
-            .read_timeout(&mut resp_ld, 500)
-            .map_err(|e| format!("Read LDROM failed: {}", e))?;
-
-        let ld_ver = if n2 >= 3 {
-            format!("{}.{}", resp_ld[2] >> 4, resp_ld[2] & 0x0F)
-        } else {
-            "Unknown".to_string()
-        };
-
-        Ok((ap_ver, ld_ver))
     }
 
     pub fn read_packet(&self) -> Result<[u8; 185], String> {
@@ -88,29 +58,13 @@ impl MSIMysticLightB550 {
             .map_err(|e| format!("get_feature_report failed: {}", e))?;
 
         if size != 185 {
-            return Err(format!("Expected 185 bytes from HID report 0x52, got {}", size));
+            return Err(format!(
+                "Expected 185 bytes from HID report 0x52, got {}",
+                size
+            ));
         }
 
         Ok(buf)
-    }
-
-    pub fn get_zone_info(&self, packet: &[u8; 185], zone_name: &str) -> Option<ZoneInfo> {
-        get_zone_info(packet, zone_name)
-    }
-
-    pub fn set_zone_data(
-        &self,
-        packet: &mut [u8; 185],
-        zone_name: &str,
-        mode: u8,
-        r: u8,
-        g: u8,
-        b: u8,
-        speed: u8,
-        brightness: u8,
-        led_count: u8,
-    ) -> bool {
-        set_zone_data(packet, zone_name, mode, r, g, b, speed, brightness, led_count)
     }
 
     /// Sends the standard two-packet update handshake to the device.
@@ -178,41 +132,24 @@ impl MSIMysticLightB550 {
 
     /// Applies an RGB color to JRGB1, JRAINBOW1, JRAINBOW2, and ONBOARD LEDs.
     pub fn apply_color_to_all(&mut self, r: u8, g: u8, b: u8, mode: u8) -> Result<(), String> {
-        self.apply_zone("all", mode, r, g, b, SPEED_MEDIUM, BRIGHTNESS_100)
-    }
-
-    pub fn apply_zone(
-        &mut self,
-        zone_name: &str,
-        mode: u8,
-        r: u8,
-        g: u8,
-        b: u8,
-        speed: u8,
-        brightness: u8,
-    ) -> Result<(), String> {
-        let mut packet = self.read_packet()?;
-
-        if zone_name == "all" {
-            set_zone_data(&mut packet, "j_rgb_1", mode, r, g, b, speed, brightness, 100);
-            set_zone_data(&mut packet, "j_rainbow_1", mode, r, g, b, speed, brightness, 100);
-            set_zone_data(&mut packet, "j_rainbow_2", mode, r, g, b, speed, brightness, 100);
-            set_zone_data(&mut packet, "on_board_led", mode, r, g, b, speed, brightness, 100);
-            for i in 1..=6 {
-                let zone_key = format!("on_board_led_{}", i);
-                set_zone_data(&mut packet, &zone_key, mode, r, g, b, speed, brightness, 100);
-            }
-        } else if zone_name == "on_board_led" {
-            set_zone_data(&mut packet, "on_board_led", mode, r, g, b, speed, brightness, 100);
-            for i in 1..=6 {
-                let zone_key = format!("on_board_led_{}", i);
-                set_zone_data(&mut packet, &zone_key, mode, r, g, b, speed, brightness, 100);
-            }
-        } else {
-            set_zone_data(&mut packet, zone_name, mode, r, g, b, speed, brightness, 100);
-        }
-
-        self.update_hardware(&mut packet)
+        <Self as MoboController>::apply_color_to_all(self, r, g, b, mode)
     }
 }
 
+impl MoboController for MSIMysticLightB550 {
+    fn read_packet(&self) -> Result<[u8; 185], String> {
+        MSIMysticLightB550::read_packet(self)
+    }
+
+    fn update_hardware(&self, target_packet: &mut [u8; 185]) -> Result<(), String> {
+        MSIMysticLightB550::update_hardware(self, target_packet)
+    }
+
+    fn stream_update(
+        &mut self,
+        target_packet: &mut [u8; 185],
+        pause_duration: Duration,
+    ) -> Result<(), String> {
+        MSIMysticLightB550::stream_update(self, target_packet, pause_duration)
+    }
+}

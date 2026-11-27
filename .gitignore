@@ -2,3 +2,6 @@
 /gen
 **/*.rs.bk
 *.exe
+.naantree/
+.agents/
+skills-lock.json

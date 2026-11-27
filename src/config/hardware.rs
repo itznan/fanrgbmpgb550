@@ -50,28 +50,85 @@ pub struct ZoneOffset {
 }
 
 pub const ZONE_OFFSETS: &[ZoneOffset] = &[
-    ZoneOffset { name: "j_rgb_1", offset: 1 },
-    ZoneOffset { name: "j_pipe_1", offset: 11 },
-    ZoneOffset { name: "j_pipe_2", offset: 21 },
-    ZoneOffset { name: "j_rainbow_1", offset: 31 },
-    ZoneOffset { name: "j_rainbow_2", offset: 42 },
-    ZoneOffset { name: "j_corsair", offset: 53 },
-    ZoneOffset { name: "j_corsair_outer", offset: 64 },
-    ZoneOffset { name: "on_board_led", offset: 74 },
-    ZoneOffset { name: "on_board_led_1", offset: 84 },
-    ZoneOffset { name: "on_board_led_2", offset: 94 },
-    ZoneOffset { name: "on_board_led_3", offset: 104 },
-    ZoneOffset { name: "on_board_led_4", offset: 114 },
-    ZoneOffset { name: "on_board_led_5", offset: 124 },
-    ZoneOffset { name: "on_board_led_6", offset: 134 },
-    ZoneOffset { name: "on_board_led_7", offset: 144 },
-    ZoneOffset { name: "on_board_led_8", offset: 154 },
-    ZoneOffset { name: "on_board_led_9", offset: 164 },
-    ZoneOffset { name: "j_rgb_2", offset: 174 },
+    ZoneOffset {
+        name: "j_rgb_1",
+        offset: 1,
+    },
+    ZoneOffset {
+        name: "j_pipe_1",
+        offset: 11,
+    },
+    ZoneOffset {
+        name: "j_pipe_2",
+        offset: 21,
+    },
+    ZoneOffset {
+        name: "j_rainbow_1",
+        offset: 31,
+    },
+    ZoneOffset {
+        name: "j_rainbow_2",
+        offset: 42,
+    },
+    ZoneOffset {
+        name: "j_corsair",
+        offset: 53,
+    },
+    ZoneOffset {
+        name: "j_corsair_outer",
+        offset: 64,
+    },
+    ZoneOffset {
+        name: "on_board_led",
+        offset: 74,
+    },
+    ZoneOffset {
+        name: "on_board_led_1",
+        offset: 84,
+    },
+    ZoneOffset {
+        name: "on_board_led_2",
+        offset: 94,
+    },
+    ZoneOffset {
+        name: "on_board_led_3",
+        offset: 104,
+    },
+    ZoneOffset {
+        name: "on_board_led_4",
+        offset: 114,
+    },
+    ZoneOffset {
+        name: "on_board_led_5",
+        offset: 124,
+    },
+    ZoneOffset {
+        name: "on_board_led_6",
+        offset: 134,
+    },
+    ZoneOffset {
+        name: "on_board_led_7",
+        offset: 144,
+    },
+    ZoneOffset {
+        name: "on_board_led_8",
+        offset: 154,
+    },
+    ZoneOffset {
+        name: "on_board_led_9",
+        offset: 164,
+    },
+    ZoneOffset {
+        name: "j_rgb_2",
+        offset: 174,
+    },
 ];
 
 pub fn get_zone_offset(zone_name: &str) -> Option<usize> {
-    ZONE_OFFSETS.iter().find(|z| z.name == zone_name).map(|z| z.offset)
+    ZONE_OFFSETS
+        .iter()
+        .find(|z| z.name == zone_name)
+        .map(|z| z.offset)
 }
 
 /// Strict safety rule: byte 184 MUST always be 0x00 (RAM volatile only, no flash writes)

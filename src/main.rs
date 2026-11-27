@@ -3,11 +3,12 @@
 mod cli;
 mod config;
 mod controller;
-pub mod effects;
+mod effects;
 mod gpu;
 mod visualizer;
 
 use std::env;
+use std::process;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -17,5 +18,8 @@ fn main() {
         return;
     }
 
-    cli::run_cli(&args);
+    if let Err(e) = cli::run_cli(&args) {
+        eprintln!("[FAIL] {}", e);
+        process::exit(1);
+    }
 }

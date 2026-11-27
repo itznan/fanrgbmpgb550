@@ -10,7 +10,8 @@ Usage:
   fanrgb <command> [arguments]
 
 Color values can be specified as:
-  - Preset name  : red, green, blue, cyan, magenta, yellow, white, orange, purple, darkpurple, off
+  - Preset name  : red, green, blue, darkblue, lightblue, iceblue, cyan, magenta,
+                   yellow, white, orange, purple, darkpurple, off
   - Hex          : "#RRGGBB" or RRGGBB  (e.g. "#A020F0", "#4B0082", or A020F0)
                    [!] In PowerShell, always quote hex strings with "#" or omit the "#"
   - RGB integers : R G B                 (e.g. 160 32 240)
@@ -25,12 +26,12 @@ Color values can be specified as:
 === GPU Commands ===
   fanrgb gpu status                Check NVAPI connection and I2C address
   fanrgb gpu <preset|hex|r g b>    Set GPU static color (e.g. fanrgb gpu "#4B0082", fanrgb gpu red)
-  fanrgb gpu mode <mode_name>      Set GPU mode (rainbow, breathing, color_cycle, wave, gradient, flash)
+  fanrgb gpu mode <mode_name>      Set GPU mode (rainbow, breathing, color_cycle, wave, gradient, flash, double_flash)
   fanrgb gpu off                   Turn off GPU lighting
 
 === Synchronized Control (Motherboard + GPU) ===
   fanrgb sync <preset|hex|r g b>   Synchronize motherboard and GPU to a color (e.g. fanrgb sync "#4B0082")
-  fanrgb bass [color] [--gpu] [--min <0-255>] [--device <name>] [--fmin <hz>] [--fmax <hz>]
+  fanrgb bass [color] [--gpu] [--min <0-255>] [--device <name>] [--fmin <hz>] [--fmax <hz>] [--decay <0-1>]
                                    Real-time sub-bass audio visualizer (WASAPI loopback)
 
 === Custom JSON Effects & Profiles ===
@@ -38,6 +39,10 @@ Color values can be specified as:
   fanrgb effect list               List all available JSON effects in ./effects/
   fanrgb effect init [template] [file]
                                    Generate starter JSON template (cyberpunk, police, breath, zones, static)
+
+=== General ===
+  fanrgb --version                 Show installed version
+  fanrgb help                      Show this help message
 "##
     );
 }

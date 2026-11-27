@@ -1,4 +1,4 @@
-name: Build & Release
+name: CI & Release
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag:
@@ -17,72 +20,127 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    name: Build & Publish Release
-    runs-on: windows-latest
+  ci:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Install Linux Build Dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libudev-dev libasound2-dev
+
       - name: Setup Rust Stable Toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Enable Cargo Dependency Cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Check Formatting
+        run: cargo fmt --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run Unit Tests
+        run: cargo test --verbose
+
       - name: Build Optimized Release Binary
         run: cargo build --release --verbose
 
-      - name: Verify Executable Execution
+      - name: Verify CLI Execution (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
-        run: .\target\release\fanrgb.exe help
+        run: |
+          .\target\release\fanrgb.exe --version
+          .\target\release\fanrgb.exe help | Out-Null
 
-      - name: Package Release Bundle (ZIP & Checksum)
+      - name: Verify CLI Execution (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          ./target/release/fanrgb --version
+          ./target/release/fanrgb help >/dev/null
+
+      - name: Package Windows Release Bundle
+        if: runner.os == 'Windows' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
         shell: pwsh
         run: |
           $distDir = "fanrgb-dist"
           New-Item -ItemType Directory -Force -Path $distDir | Out-Null
-          
           Copy-Item "target\release\fanrgb.exe" -Destination "$distDir\"
-          Copy-Item "README.md" -Destination "$distDir\"
-          Copy-Item "usage.md" -Destination "$distDir\"
-          Copy-Item "LICENSE" -Destination "$distDir\"
-          Copy-Item -Recurse "effects" -Destination "$distDir\"
-          
+          Copy-Item "README.md", "usage.md", "LICENSE", "CHANGELOG.md" -Destination "$distDir\"
+          Copy-Item -Recurse "effects", "scripts" -Destination "$distDir\"
           Compress-Archive -Path "$distDir\*" -DestinationPath "fanrgb-windows-x86_64.zip" -Force
-          
           $hash = (Get-FileHash -Algorithm SHA256 "fanrgb-windows-x86_64.zip").Hash
           "$hash  fanrgb-windows-x86_64.zip" | Out-File -Encoding ascii "fanrgb-windows-x86_64.zip.sha256"
-          
-          Write-Host "Archive created: fanrgb-windows-x86_64.zip (SHA256: $hash)"
+
+      - name: Package Linux Release Bundle
+        if: runner.os == 'Linux' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
+        run: |
+          mkdir -p fanrgb-dist
+          cp target/release/fanrgb README.md usage.md LICENSE CHANGELOG.md fanrgb-dist/
+          cp -r effects udev fanrgb-dist/
+          tar -czf fanrgb-linux-x86_64.tar.gz -C fanrgb-dist .
+          sha256sum fanrgb-linux-x86_64.tar.gz > fanrgb-linux-x86_64.tar.gz.sha256
+
+      - name: Upload Release Artifacts
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}
+          path: |
+            target/release/fanrgb.exe
+            fanrgb-windows-x86_64.zip
+            fanrgb-windows-x86_64.zip.sha256
+            fanrgb-linux-x86_64.tar.gz
+            fanrgb-linux-x86_64.tar.gz.sha256
+
+  release:
+    name: Publish GitHub Release
+    needs: ci
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Release Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
 
       - name: Determine Release Tag
         id: tag_info
-        shell: pwsh
         run: |
-          if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            $tag = $env:GITHUB_REF_NAME
-          } elseif ($env:INPUT_TAG) {
-            $tag = $env:INPUT_TAG
-          } else {
-            $tag = "v0.1.0"
-          }
-          Write-Output "tag=$tag" >> $env:GITHUB_OUTPUT
-        env:
-          INPUT_TAG: ${{ github.event.inputs.tag }}
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          elif [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="v0.1.0"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag_info.outputs.tag }}
-          name: ${{ steps.tag_info.outputs.tag }} - Native Windows RGB Controller
+          name: ${{ steps.tag_info.outputs.tag }} - Native RGB Controller
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            target/release/fanrgb.exe
-            fanrgb-windows-x86_64.zip
-            fanrgb-windows-x86_64.zip.sha256
+            release-artifacts/fanrgb.exe
+            release-artifacts/fanrgb-windows-x86_64.zip
+            release-artifacts/fanrgb-windows-x86_64.zip.sha256
+            release-artifacts/fanrgb-linux-x86_64.tar.gz
+            release-artifacts/fanrgb-linux-x86_64.tar.gz.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

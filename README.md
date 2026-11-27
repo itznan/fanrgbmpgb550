@@ -38,7 +38,7 @@ Developed by **itznan** ([github.com/itznan](https://github.com/itznan)) — 202
 * **Minimal System Footprint**: Pure Rust CLI (< 5 MB binary, tiny memory usage), 0% idle CPU overhead.
 * **Deterministic Control**: Direct, low-level hardware control without background bloatware or unrequested transitions.
 * **Zero Flash Wear Guarantee**: Volatile RAM updates (`save_data = 0x00`) strictly protect motherboard EEPROM from wear.
-* **Real-Time WASAPI Loopback Sub-Bass Visualizer**: High-resolution audio reactivity with terminal ASCII meter.
+* **Real-Time Audio Sub-Bass Visualizer**: Low-latency Windows WASAPI loopback audio reactivity with terminal ASCII meter (`fanrgb bass`).
 * **Synchronized Control**: One command syncs motherboard, fans, and graphics card simultaneously.
 
 ---
@@ -62,8 +62,8 @@ Developed by **itznan** ([github.com/itznan](https://github.com/itznan)) — 202
 ```bash
 cargo build --release
 ```
-* **Windows executable**: `.\target\release\fanrgb.exe`
-* **Linux binary**: `./target/release/fanrgb`
+* **Windows executable**: `.\target\release\fanrgb.exe <command>`
+* **Linux binary**: `./target/release/fanrgb <command>`
 
 ### Linux Setup & Permissions (udev rule)
 To access the MSI Motherboard USB HID interface without requiring root/sudo privileges on Linux, install the provided udev rule:
@@ -196,7 +196,7 @@ Synchronize both the motherboard (and all connected fans) and the GPU to match s
 
 ### Real-Time Audio Sub-Bass Visualizer
 
-Uses low-latency Windows WASAPI loopback capture with FFT sub-bass extraction to make fans and LEDs pulse dynamically to bass and kick drums:
+Uses low-latency Windows WASAPI loopback capture (Windows only) with FFT sub-bass extraction to make fans and LEDs pulse dynamically to bass and kick drums:
 
 ```powershell
 # Visualizer on motherboard fans (default blue)
@@ -314,7 +314,7 @@ The codebase is organized into small, decoupled, and single-responsibility modul
 
 ```text
 ├── .github/workflows/
-│   └── build.yml             # GitHub Actions CI/CD (Windows build & automated release)
+│   └── build.yml             # GitHub Actions CI (Windows & Linux) & tagged releases
 ├── effects/                  # Bundled custom JSON effect presets & profiles
 │   ├── blue_purple_fade.json # Smooth cyclic fade between dark blue and dark purple
 │   ├── cyberpunk.json        # Smooth fade between neon cyan and purple
@@ -322,8 +322,14 @@ The codebase is organized into small, decoupled, and single-responsibility modul
 │   ├── amber_breath.json     # Slow organic amber breathing
 │   ├── zone_split.json       # Independent animated zones per header and GPU
 │   └── static_profile.json   # Multi-zone static color layout profile
+├── scripts/                  # Windows helper batch launchers
+│   ├── audio_reactive_red.bat
+│   ├── off.bat
+│   └── rainbow.bat
+├── udev/
+│   └── 99-msi-rgb.rules      # Linux non-root HID permissions rule
 ├── src/
-│   ├── main.rs               # Lightweight CLI entrypoint & argument dispatcher
+│   ├── main.rs               # Lightweight CLI entrypoint & error exit-code handler
 │   ├── cli/                  # Command-line interface modules
 │   │   ├── mod.rs            # CLI module entrypoint
 │   │   ├── args.rs           # Color & argument parser (hex, presets, RGB)
@@ -334,17 +340,17 @@ The codebase is organized into small, decoupled, and single-responsibility modul
 │   │   ├── mod.rs            # Effects engine exports
 │   │   ├── schema.rs         # JSON deserializer, color parser, keyframe interpolation
 │   │   ├── player.rs         # High-frequency volatile streaming player
-│   │   └── templates.rs      # Starter template generator (cyberpunk, police, etc.)
+│   │   └── templates.rs      # Starter template lookup backed by bundled effects/
 │   ├── controller/           # MSI Mystic Light Motherboard driver
 │   │   ├── mod.rs            # Controller exports
-│   │   ├── device.rs         # HID Feature Report 0x52 read/write & handshake
+│   │   ├── device.rs         # HID Feature Report 0x52 read/write & MoboController trait
 │   │   └── zone.rs           # Zone byte offset packing & unpacking
 │   ├── gpu/                  # Gigabyte RGB Fusion 2.0 via NVAPI driver
 │   │   ├── mod.rs            # GPU exports
-│   │   ├── fusion.rs         # I2C probing (0x32, 0x62, etc.), color & mode registers
+│   │   ├── fusion.rs         # Multi-GPU I2C probing (0x32, 0x62, etc.) & GpuController trait
 │   │   ├── nvapi.rs          # NVIDIA NVAPI 64-bit struct definitions
 │   │   └── constants.rs      # Mode codes, speeds, and register addresses
-│   ├── visualizer/           # WASAPI Audio DSP engine
+│   ├── visualizer/           # Audio DSP & render engine
 │   │   ├── mod.rs            # Visualizer exports
 │   │   ├── audio.rs          # WASAPI loopback capture & FFT sub-bass extractor
 │   │   └── renderer.rs       # ASCII terminal meter & high-throughput HID streaming
@@ -352,8 +358,9 @@ The codebase is organized into small, decoupled, and single-responsibility modul
 │       ├── mod.rs            # Config exports
 │       ├── hardware.rs       # USB VID/PID, zone offsets, report byte constants
 │       └── presets.rs        # Named color RGB presets and animation mode mappings
+├── CHANGELOG.md              # Release changelog
 ├── usage.md                  # Comprehensive usage and configuration guide
-└── Cargo.toml                # Package configuration (Rust Edition 2021, Release 2026)
+└── Cargo.toml                # Package configuration (Rust Edition 2021)
 ```
 
 ---
@@ -372,5 +379,5 @@ The codebase is organized into small, decoupled, and single-responsibility modul
 * **GitHub Profile:** [https://github.com/itznan](https://github.com/itznan)
 * **Repository:** [https://github.com/itznan/fanrgbmpgb550](https://github.com/itznan/fanrgbmpgb550)
 * **Rust Language Edition:** `2021` | **Year / Release:** `2026`
-* **License:** MIT / Apache-2.0
+* **License:** MIT
 

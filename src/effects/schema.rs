@@ -1,9 +1,9 @@
 //! Schema and deserialization for custom JSON lighting effects and profiles.
 
+use crate::config::get_color_preset;
+use serde::{de, Deserialize, Deserializer};
 use std::collections::HashMap;
 use std::fmt;
-use serde::{de, Deserialize, Deserializer};
-use crate::config::get_color_preset;
 
 fn default_true() -> bool {
     true
@@ -87,16 +87,28 @@ impl<'de> Deserialize<'de> for ColorRGB {
                     return Ok(ColorRGB { r, g, b });
                 }
 
-                Err(de::Error::custom(format!("Unknown color string '{}'", value)))
+                Err(de::Error::custom(format!(
+                    "Unknown color string '{}'",
+                    value
+                )))
             }
 
             fn visit_seq<A>(self, mut seq: A) -> Result<ColorRGB, A::Error>
             where
                 A: de::SeqAccess<'de>,
             {
-                let r: u8 = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                let g: u8 = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                let b: u8 = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                let r: u8 = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let g: u8 = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let b: u8 = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                if seq.next_element::<de::IgnoredAny>()?.is_some() {
+                    return Err(de::Error::invalid_length(4, &self));
+                }
                 Ok(ColorRGB { r, g, b })
             }
 
@@ -194,7 +206,7 @@ pub fn canonical_zone_name(name: &str) -> Option<&'static str> {
 }
 
 /// A resolved state mapping canonical zone names to RGB colors.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ZoneState {
     pub j_rgb_1: ColorRGB,
     pub j_rainbow_1: ColorRGB,
@@ -226,41 +238,51 @@ impl ZoneState {
         }
     }
 
-    pub fn from_keyframe(kf: &EffectKeyframe, base: &ZoneState) -> Self {
-        let mut state = *base;
+    pub fn apply_zones(&mut self, zones: &HashMap<String, ColorRGB>) {
+        // Apply "all" before specific zones so HashMap randomization cannot clobber overrides.
+        for (key, color) in zones {
+            if canonical_zone_name(key) == Some("all") {
+                *self = Self::solid(*color);
+            }
+        }
+        for (key, color) in zones {
+            match canonical_zone_name(key) {
+                Some("j_rgb_1") => self.j_rgb_1 = *color,
+                Some("j_rainbow_1") => self.j_rainbow_1 = *color,
+                Some("j_rainbow_2") => self.j_rainbow_2 = *color,
+                Some("on_board_led") => self.on_board_led = *color,
+                Some("gpu") => self.gpu = *color,
+                _ => {}
+            }
+        }
+    }
+
+    pub fn from_keyframe(kf: &EffectKeyframe, unscaled_base: &ZoneState) -> (Self, Self) {
+        let mut unscaled = *unscaled_base;
 
         if let Some(c) = kf.color {
-            state = Self::solid(c);
+            unscaled = Self::solid(c);
         }
 
         if let Some(ref zones) = kf.zones {
-            for (key, color) in zones {
-                match canonical_zone_name(key) {
-                    Some("all") => state = Self::solid(*color),
-                    Some("j_rgb_1") => state.j_rgb_1 = *color,
-                    Some("j_rainbow_1") => state.j_rainbow_1 = *color,
-                    Some("j_rainbow_2") => state.j_rainbow_2 = *color,
-                    Some("on_board_led") => state.on_board_led = *color,
-                    Some("gpu") => state.gpu = *color,
-                    _ => {}
-                }
-            }
+            unscaled.apply_zones(zones);
         }
 
+        let mut scaled = unscaled;
         if let Some(b) = kf.brightness {
             let factor = if b > 100 {
                 (b as f32) / 255.0
             } else {
                 (b as f32) / 100.0
             };
-            state.j_rgb_1 = state.j_rgb_1.scale(factor);
-            state.j_rainbow_1 = state.j_rainbow_1.scale(factor);
-            state.j_rainbow_2 = state.j_rainbow_2.scale(factor);
-            state.on_board_led = state.on_board_led.scale(factor);
-            state.gpu = state.gpu.scale(factor);
+            scaled.j_rgb_1 = scaled.j_rgb_1.scale(factor);
+            scaled.j_rainbow_1 = scaled.j_rainbow_1.scale(factor);
+            scaled.j_rainbow_2 = scaled.j_rainbow_2.scale(factor);
+            scaled.on_board_led = scaled.on_board_led.scale(factor);
+            scaled.gpu = scaled.gpu.scale(factor);
         }
 
-        state
+        (unscaled, scaled)
     }
 
     pub fn lerp(&self, other: &ZoneState, t: f32) -> Self {
@@ -271,5 +293,74 @@ impl ZoneState {
             on_board_led: self.on_board_led.lerp(other.on_board_led, t),
             gpu: self.gpu.lerp(other.gpu, t),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::effects::get_template_json;
+
+    #[test]
+    fn parses_all_color_formats_and_rejects_bad_arrays() {
+        assert_eq!(
+            serde_json::from_str::<ColorRGB>(r##""#00FFFF""##).unwrap(),
+            ColorRGB::new(0, 255, 255)
+        );
+        assert_eq!(
+            serde_json::from_str::<ColorRGB>(r#""purple""#).unwrap(),
+            ColorRGB::new(160, 32, 240)
+        );
+        assert_eq!(
+            serde_json::from_str::<ColorRGB>("[10, 20, 30]").unwrap(),
+            ColorRGB::new(10, 20, 30)
+        );
+        assert_eq!(
+            serde_json::from_str::<ColorRGB>(r#"{"r":1,"g":2,"b":3}"#).unwrap(),
+            ColorRGB::new(1, 2, 3)
+        );
+        assert!(serde_json::from_str::<ColorRGB>("[1, 2, 3, 4]").is_err());
+    }
+
+    #[test]
+    fn applies_all_before_specific_zones_and_avoids_brightness_compounding() {
+        let mut zones = HashMap::new();
+        zones.insert("gpu".to_string(), ColorRGB::new(200, 0, 0));
+        zones.insert("all".to_string(), ColorRGB::new(0, 0, 100));
+
+        let kf1 = EffectKeyframe {
+            duration_ms: 100,
+            transition: "linear".to_string(),
+            color: None,
+            zones: Some(zones),
+            brightness: Some(50),
+        };
+        let (unscaled1, scaled1) = ZoneState::from_keyframe(&kf1, &ZoneState::default());
+        assert_eq!(scaled1.j_rainbow_1, ColorRGB::new(0, 0, 50));
+        assert_eq!(scaled1.gpu, ColorRGB::new(100, 0, 0));
+
+        let mut zones2 = HashMap::new();
+        zones2.insert("j_rainbow_1".to_string(), ColorRGB::new(200, 200, 200));
+        let kf2 = EffectKeyframe {
+            duration_ms: 100,
+            transition: "linear".to_string(),
+            color: None,
+            zones: Some(zones2),
+            brightness: Some(50),
+        };
+        let (_, scaled2) = ZoneState::from_keyframe(&kf2, &unscaled1);
+        assert_eq!(scaled2.gpu, ColorRGB::new(100, 0, 0));
+        assert_eq!(scaled2.j_rainbow_1, ColorRGB::new(100, 100, 100));
+    }
+
+    #[test]
+    fn bundled_effects_and_templates_parse_and_unknown_template_is_none() {
+        for name in ["cyberpunk", "police", "breath", "zones", "static"] {
+            let raw = get_template_json(name).unwrap();
+            assert!(serde_json::from_str::<CustomEffect>(raw).is_ok());
+        }
+        assert!(get_template_json("does_not_exist").is_none());
+        let fade = include_str!("../../effects/blue_purple_fade.json");
+        assert!(serde_json::from_str::<CustomEffect>(fade).is_ok());
     }
 }

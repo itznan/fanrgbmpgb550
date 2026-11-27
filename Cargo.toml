@@ -3,8 +3,12 @@ name = "fanrgb"
 version = "0.1.0"
 edition = "2021"
 authors = ["itznan <https://github.com/itznan>"]
+description = "Lightweight native CLI RGB controller for MSI MPG B550 motherboards, Gigabyte GPUs, custom JSON effects, and audio sub-bass visualization"
+readme = "README.md"
 repository = "https://github.com/itznan/fanrgbmpgb550"
 license = "MIT"
+keywords = ["rgb", "cli", "msi", "nvapi", "hid"]
+categories = ["command-line-utilities", "hardware-support"]
 
 [dependencies]
 cpal = "0.15"
@@ -22,4 +26,3 @@ hidapi = "2.6"
 
 [target.'cfg(windows)'.dependencies]
 libloading = "0.8"
-
